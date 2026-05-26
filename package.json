@@ -9,7 +9,8 @@
     "build": "vite build --base=./",
     "preview": "vite preview --host 0.0.0.0",
     "serve": "node scripts/serve-production-build.mjs",
-    "catalog:update": "powershell -ExecutionPolicy Bypass -File scripts/update-uzum-catalog.ps1"
+    "catalog:update": "powershell -ExecutionPolicy Bypass -File scripts/update-uzum-catalog.ps1",
+    "admin:hash": "node scripts/create-admin-hash.mjs"
   },
   "dependencies": {
     "@vitejs/plugin-react": "^4.3.4",

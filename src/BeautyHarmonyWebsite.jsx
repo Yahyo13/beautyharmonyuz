@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ArrowLeft,
   ArrowRight,
@@ -13,9 +13,12 @@ import {
   Handshake,
   HeartHandshake,
   Leaf,
+  Lock,
+  LogOut,
   Menu,
   PackageCheck,
   Palette,
+  RefreshCw,
   Search,
   Send,
   ShieldCheck,
@@ -28,6 +31,16 @@ import {
   Truck,
   X,
 } from "lucide-react";
+import {
+  createPartnerRequest,
+  fetchPartnerRequests,
+  formatUzbekPhoneNumber,
+  getAdminSession,
+  isValidUzbekPhoneNumber,
+  loginAdmin,
+  logoutAdmin,
+  partnerRequestTypes,
+} from "./data/partnerRequestsApi";
 import { uzumCatalogProductsRaw } from "./data/uzumCatalogProducts.generated";
 
 const uzumShopUrl = "https://uzum.uz/uz/shop/beautyh";
@@ -175,8 +188,8 @@ const ui = {
       comment: "Комментарий",
       commentPlaceholder: "Формат продажи, примерный объем, какие категории интересуют",
       submit: "Отправить заявку",
-      status: "Заявка сохранена в браузере. Для реального сайта форму можно подключить к Telegram-боту или backend API.",
-      formats: ["Оптовая закупка", "Маркетплейс", "Розничная сеть", "Дистрибуция"],
+      status: "Заявка отправлена. Мы сохранили ее в общей базе партнерских заявок.",
+      formats: ["Оптовая Закупка", "Маркетплейс", "Розничная Сеть", "Дистрибуция"],
     },
     market: {
       title: "Товары Beauty Harmony в Uzum Market",
@@ -317,7 +330,7 @@ const ui = {
       comment: "Izoh",
       commentPlaceholder: "Savdo formati, taxminiy hajm, qaysi kategoriyalar qiziq",
       submit: "Ariza yuborish",
-      status: "Ariza brauzerda saqlandi. Haqiqiy sayt uchun formani Telegram-bot yoki backend API'ga ulash mumkin.",
+      status: "Ariza yuborildi. U hamkorlik arizalarining umumiy bazasida saqlandi.",
       formats: ["Ulgurji xarid", "Marketpleys", "Chakana tarmoq", "Distribyutsiya"],
     },
     market: {
@@ -1355,17 +1368,32 @@ function inferProductVolume(title) {
 }
 
 function useHashRoute() {
-  const getRoute = () => window.location.hash.replace(/^#/, "") || "/";
+  const normalizeRoute = (value) => {
+    const route = value || "/";
+    return route.startsWith("/") ? route : `/${route}`;
+  };
+
+  const getRoute = () => {
+    const hashRoute = window.location.hash.replace(/^#/, "");
+    if (hashRoute) return normalizeRoute(hashRoute);
+
+    return normalizeRoute(window.location.pathname.replace(/\/$/, "") || "/");
+  };
+
   const [route, setRoute] = useState(getRoute);
 
   useEffect(() => {
-    const handleHashChange = () => {
+    const handleRouteChange = () => {
       setRoute(getRoute());
       window.scrollTo({ top: 0, behavior: "smooth" });
     };
 
-    window.addEventListener("hashchange", handleHashChange);
-    return () => window.removeEventListener("hashchange", handleHashChange);
+    window.addEventListener("hashchange", handleRouteChange);
+    window.addEventListener("popstate", handleRouteChange);
+    return () => {
+      window.removeEventListener("hashchange", handleRouteChange);
+      window.removeEventListener("popstate", handleRouteChange);
+    };
   }, []);
 
   return route;
@@ -1397,7 +1425,7 @@ function useRevealAnimation(route) {
   }, [route]);
 }
 
-function AppButton({ href, children, variant = "primary", icon: Icon, type = "button", onClick }) {
+function AppButton({ href, children, variant = "primary", icon: Icon, type = "button", onClick, disabled = false }) {
   const className = `app-button ${variant}`;
 
   if (href) {
@@ -1411,7 +1439,7 @@ function AppButton({ href, children, variant = "primary", icon: Icon, type = "bu
   }
 
   return (
-    <button className={className} type={type} onClick={onClick}>
+    <button className={className} type={type} onClick={onClick} disabled={disabled}>
       {Icon && <Icon size={18} aria-hidden="true" />}
       <span>{children}</span>
     </button>
@@ -1442,7 +1470,7 @@ function Shell({ route, children }) {
       <nav className="topbar">
         <a className="brand-mark" href="#/" aria-label="Beauty Harmony" onClick={scrollToHomeTop}>
           <span>BH</span>
-          <strong>Beauty</strong>
+          <strong>Beauty </strong>
         </a>
 
         <div className={`nav-links${isMenuOpen ? " is-open" : ""}`} id="site-nav">
@@ -2098,48 +2126,72 @@ function BrandPage({ brand }) {
 }
 
 function B2BPage() {
-  const { t } = useLocale();
+  const { language, t } = useLocale();
   const [status, setStatus] = useState("");
+  const [statusType, setStatusType] = useState("success");
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [form, setForm] = useState({
     company: "",
     name: "",
-    phone: "",
+    phoneNumber: "+998 ",
     city: "",
-    format: t.b2b.formats[0],
+    type: t.b2b.formats[0],
     brands: "Dr.Sante, Fresh Juice, Green Pharmacy",
-    message: "",
+    comment: "",
   });
 
   const formats = t.b2b.formats;
 
   useEffect(() => {
-    if (!formats.includes(form.format)) {
-      setForm((current) => ({ ...current, format: formats[0] }));
+    if (!formats.includes(form.type)) {
+      setForm((current) => ({ ...current, type: formats[0] }));
     }
-  }, [formats, form.format]);
+  }, [formats, form.type]);
 
   const handleChange = (event) => {
     const { name, value } = event.target;
-    setForm((current) => ({ ...current, [name]: value }));
+    setForm((current) => ({
+      ...current,
+      [name]: name === "phoneNumber" ? formatUzbekPhoneNumber(value) : value,
+    }));
   };
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault();
-    const savedRequests = JSON.parse(localStorage.getItem("beautyh-partner-requests") || "[]");
-    localStorage.setItem(
-      "beautyh-partner-requests",
-      JSON.stringify([{ ...form, createdAt: new Date().toISOString() }, ...savedRequests])
-    );
-    setStatus(t.b2b.status);
-    setForm({
-      company: "",
-      name: "",
-      phone: "",
-      city: "",
-      format: formats[0],
-      brands: "Dr.Sante, Fresh Juice, Green Pharmacy",
-      message: "",
-    });
+
+    if (!isValidUzbekPhoneNumber(form.phoneNumber)) {
+      setStatus(language === "uz" ? "Telefon raqamini +998 kodi bilan to'liq kiriting." : "Введите полный номер телефона с кодом +998.");
+      setStatusType("error");
+      return;
+    }
+
+    setIsSubmitting(true);
+    setStatus(language === "uz" ? "Ariza yuborilmoqda..." : "Отправляем заявку...");
+    setStatusType("success");
+
+    try {
+      await createPartnerRequest(form);
+      setStatus(t.b2b.status);
+      setStatusType("success");
+      setForm({
+        company: "",
+        name: "",
+        phoneNumber: "+998 ",
+        city: "",
+        type: formats[0],
+        brands: "Dr.Sante, Fresh Juice, Green Pharmacy",
+        comment: "",
+      });
+    } catch {
+      setStatus(
+        language === "uz"
+          ? "Arizani yuborib bo'lmadi. Internetni tekshiring yoki keyinroq urinib ko'ring."
+          : "Не удалось отправить заявку. Проверьте интернет или попробуйте позже."
+      );
+      setStatusType("error");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -2186,7 +2238,7 @@ function B2BPage() {
             </label>
             <label>
               {t.b2b.phone}
-              <input name="phone" value={form.phone} onChange={handleChange} placeholder={t.b2b.phonePlaceholder} required />
+              <input name="phoneNumber" value={form.phoneNumber} onChange={handleChange} placeholder={t.b2b.phonePlaceholder} required />
             </label>
             <label>
               {t.b2b.city}
@@ -2196,12 +2248,12 @@ function B2BPage() {
 
           <div className="format-options" role="group" aria-label={t.b2b.formatLabel}>
             {formats.map((format) => (
-              <label key={format} className={form.format === format ? "is-selected" : ""}>
+              <label key={format} className={form.type === format ? "is-selected" : ""}>
                 <input
                   type="radio"
-                  name="format"
+                  name="type"
                   value={format}
-                  checked={form.format === format}
+                  checked={form.type === format}
                   onChange={handleChange}
                 />
                 {format}
@@ -2217,22 +2269,310 @@ function B2BPage() {
           <label>
             {t.b2b.comment}
             <textarea
-              name="message"
-              value={form.message}
+              name="comment"
+              value={form.comment}
               onChange={handleChange}
               rows="4"
               placeholder={t.b2b.commentPlaceholder}
             />
           </label>
 
-          <AppButton type="submit" icon={Send}>
-            {t.b2b.submit}
+          <AppButton type="submit" icon={Send} disabled={isSubmitting}>
+            {isSubmitting ? (language === "uz" ? "Yuborilmoqda..." : "Отправка...") : t.b2b.submit}
           </AppButton>
 
-          {status && <p className="form-status">{status}</p>}
+          {status && <p className={`form-status${statusType === "error" ? " is-error" : ""}`}>{status}</p>}
         </form>
       </section>
     </>
+  );
+}
+
+function getRequestField(request, keys) {
+  return keys.map((key) => request?.[key]).find((value) => value !== undefined && value !== null && String(value).trim()) || "";
+}
+
+function formatRequestDate(value) {
+  if (!value) return "Дата не указана";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+
+  return new Intl.DateTimeFormat("ru-RU", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date);
+}
+
+function AdminPage() {
+  const [session, setSession] = useState(null);
+  const [isCheckingSession, setIsCheckingSession] = useState(true);
+  const [credentials, setCredentials] = useState({ login: "", password: "" });
+  const [loginError, setLoginError] = useState("");
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const [requests, setRequests] = useState([]);
+  const [query, setQuery] = useState("");
+  const [typeFilter, setTypeFilter] = useState("all");
+  const [loadStatus, setLoadStatus] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    getAdminSession()
+      .then((user) => {
+        if (isMounted) setSession(user);
+      })
+      .finally(() => {
+        if (isMounted) setIsCheckingSession(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const loadRequests = useCallback(async () => {
+    setIsLoading(true);
+    setLoadStatus("");
+
+    try {
+      setRequests(await fetchPartnerRequests());
+    } catch {
+      setLoadStatus("Не удалось загрузить заявки. Проверьте соединение или серверные настройки.");
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (session) {
+      loadRequests();
+    }
+  }, [loadRequests, session]);
+
+  const handleCredentialChange = (event) => {
+    const { name, value } = event.target;
+    setCredentials((current) => ({ ...current, [name]: value }));
+  };
+
+  const handleLogin = async (event) => {
+    event.preventDefault();
+    setIsLoggingIn(true);
+    setLoginError("");
+
+    try {
+      const user = await loginAdmin(credentials);
+      setSession(user);
+      setCredentials({ login: "", password: "" });
+    } catch {
+      setLoginError("Неверный логин или пароль.");
+    } finally {
+      setIsLoggingIn(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    await logoutAdmin();
+    setSession(null);
+    setRequests([]);
+  };
+
+  const filteredRequests = useMemo(() => {
+    const normalizedQuery = query.trim().toLowerCase();
+
+    return requests.filter((request) => {
+      const requestType = getRequestField(request, ["type", "format"]);
+      const matchesType = typeFilter === "all" || requestType === typeFilter;
+      const searchableText = [
+        request.id,
+        getRequestField(request, ["name"]),
+        getRequestField(request, ["phoneNumber", "phone", "phone number"]),
+        getRequestField(request, ["city"]),
+        getRequestField(request, ["company"]),
+        requestType,
+        getRequestField(request, ["brands"]),
+        getRequestField(request, ["comment", "message"]),
+      ]
+        .join(" ")
+        .toLowerCase();
+
+      return matchesType && (!normalizedQuery || searchableText.includes(normalizedQuery));
+    });
+  }, [query, requests, typeFilter]);
+
+  const types = useMemo(() => {
+    const apiTypes = requests.map((request) => getRequestField(request, ["type", "format"])).filter(Boolean);
+    return [...new Set([...partnerRequestTypes, ...apiTypes])];
+  }, [requests]);
+
+  if (isCheckingSession) {
+    return (
+      <section className="admin-login-page">
+        <div className="admin-empty">
+          <RefreshCw size={32} aria-hidden="true" />
+          <h2>Проверяем сессию</h2>
+        </div>
+      </section>
+    );
+  }
+
+  if (!session) {
+    return (
+      <section className="admin-login-page">
+        <form className="admin-login-card" onSubmit={handleLogin}>
+          <span>
+            <Lock size={18} aria-hidden="true" />
+            Admin
+          </span>
+          <h1>Вход в админ панель</h1>
+          <p>Введите логин и пароль, чтобы посмотреть B2B заявки партнеров.</p>
+
+          <label>
+            Логин
+            <input name="login" value={credentials.login} onChange={handleCredentialChange} autoComplete="username" required />
+          </label>
+
+          <label>
+            Пароль
+            <input
+              name="password"
+              type="password"
+              value={credentials.password}
+              onChange={handleCredentialChange}
+              autoComplete="current-password"
+              required
+            />
+          </label>
+
+          <AppButton type="submit" icon={ShieldCheck} disabled={isLoggingIn}>
+            {isLoggingIn ? "Проверяем..." : "Войти"}
+          </AppButton>
+
+          {loginError && <p className="admin-error">{loginError}</p>}
+          <small>Вход проверяется на сервере, пароль не хранится в frontend-коде.</small>
+        </form>
+      </section>
+    );
+  }
+
+  return (
+    <section className="admin-page">
+      <header className="admin-header">
+        <div>
+          <span className="eyebrow">
+            <ShieldCheck size={17} aria-hidden="true" />
+            Admin
+          </span>
+          <h1>B2B заявки</h1>
+          <p>Заявки загружаются через защищенный серверный endpoint. Список доступен только после входа.</p>
+        </div>
+
+        <div className="admin-actions">
+          <AppButton variant="secondary" icon={RefreshCw} onClick={loadRequests} disabled={isLoading}>
+            {isLoading ? "Загрузка..." : "Обновить"}
+          </AppButton>
+          <AppButton variant="ghost" icon={LogOut} onClick={handleLogout}>
+            Выйти
+          </AppButton>
+        </div>
+      </header>
+
+      <div className="admin-stats">
+        <div>
+          <strong>{requests.length}</strong>
+          <span>всего заявок</span>
+        </div>
+        <div>
+          <strong>{filteredRequests.length}</strong>
+          <span>показано сейчас</span>
+        </div>
+        <div>
+          <strong>{session.name}</strong>
+          <span>текущий админ</span>
+        </div>
+      </div>
+
+      <div className="admin-toolbar">
+        <label>
+          Поиск
+          <span>
+            <Search size={18} aria-hidden="true" />
+            <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Имя, телефон, город, компания" />
+          </span>
+        </label>
+
+        <label>
+          Тип заявки
+          <select value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)}>
+            <option value="all">Все типы</option>
+            {types.map((type) => (
+              <option value={type} key={type}>
+                {type}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+
+      {loadStatus && <p className="admin-error">{loadStatus}</p>}
+
+      {isLoading ? (
+        <div className="admin-empty">
+          <RefreshCw size={32} aria-hidden="true" />
+          <h2>Загружаем заявки</h2>
+        </div>
+      ) : filteredRequests.length > 0 ? (
+        <div className="admin-request-grid">
+          {filteredRequests.map((request) => {
+            const phoneNumber = getRequestField(request, ["phoneNumber", "phone", "phone number"]);
+            const comment = getRequestField(request, ["comment", "message"]);
+            const requestType = getRequestField(request, ["type", "format"]);
+
+            return (
+              <article className="admin-request-card" key={request.id || `${request.name}-${request.createdAt}`}>
+                <div className="admin-request-card__top">
+                  <span>#{request.id || "без id"}</span>
+                  <strong>{requestType || "Без типа"}</strong>
+                </div>
+
+                <h2>{getRequestField(request, ["name"]) || "Без имени"}</h2>
+
+                <dl>
+                  <div>
+                    <dt>Телефон</dt>
+                    <dd>{phoneNumber || "Не указан"}</dd>
+                  </div>
+                  <div>
+                    <dt>Город</dt>
+                    <dd>{getRequestField(request, ["city"]) || "Не указан"}</dd>
+                  </div>
+                  <div>
+                    <dt>Компания</dt>
+                    <dd>{getRequestField(request, ["company"]) || "Не указана"}</dd>
+                  </div>
+                  <div>
+                    <dt>Бренды</dt>
+                    <dd>{getRequestField(request, ["brands"]) || "Не указаны"}</dd>
+                  </div>
+                </dl>
+
+                {comment && <p>{comment}</p>}
+                <small>{formatRequestDate(request.createdAt)}</small>
+              </article>
+            );
+          })}
+        </div>
+      ) : (
+        <div className="admin-empty">
+          <Search size={32} aria-hidden="true" />
+          <h2>Заявки не найдены</h2>
+          <p>Попробуйте очистить поиск или обновить список.</p>
+        </div>
+      )}
+    </section>
   );
 }
 
@@ -2302,6 +2642,7 @@ export function BeautyHarmonyWebsite() {
     if (route === "/catalog") return <CatalogPage />;
     if (route === "/brands") return <BrandsSection />;
     if (route === "/b2b") return <B2BPage />;
+    if (route === "/admin") return <AdminPage />;
 
     const brandMatch = route.match(/^\/brand\/(.+)$/);
     if (brandMatch) {
