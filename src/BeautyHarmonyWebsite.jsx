@@ -2656,7 +2656,7 @@ function AdminPage() {
             <Lock size={18} aria-hidden="true" />
             Admin
           </span>
-          <h1>Вход в админ панель</h1>
+          <h2>Вход в админ панель</h2>
           <p>Введите логин и пароль, чтобы посмотреть B2B заявки партнеров.</p>
 
           <label>
@@ -2681,7 +2681,6 @@ function AdminPage() {
           </AppButton>
 
           {loginError && <p className="admin-error">{loginError}</p>}
-          <small>Вход проверяется на сервере, пароль не хранится в frontend-коде.</small>
         </form>
       </section>
     );
