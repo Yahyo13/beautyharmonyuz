@@ -192,6 +192,10 @@ const ui = {
       commentPlaceholder: "Формат продажи, примерный объем, какие категории интересуют",
       submit: "Отправить заявку",
       status: "Заявка отправлена. Мы сохранили ее в общей базе партнерских заявок.",
+      successTitle: "Заявка успешно отправлена",
+      successText: "Ожидайте, скоро с вами свяжутся.",
+      successClose: "Понятно",
+      emptyValue: "Не указано",
       formats: ["Оптовая Закупка", "Маркетплейс", "Розничная Сеть", "Дистрибуция"],
     },
     market: {
@@ -334,6 +338,10 @@ const ui = {
       commentPlaceholder: "Savdo formati, taxminiy hajm, qaysi kategoriyalar qiziq",
       submit: "Ariza yuborish",
       status: "Ariza yuborildi. U hamkorlik arizalarining umumiy bazasida saqlandi.",
+      successTitle: "Ariza muvaffaqiyatli yuborildi",
+      successText: "Kutib turing, tez orada siz bilan bog'lanamiz.",
+      successClose: "Tushunarli",
+      emptyValue: "Ko'rsatilmagan",
       formats: ["Ulgurji xarid", "Marketpleys", "Chakana tarmoq", "Distribyutsiya"],
     },
     market: {
@@ -2202,6 +2210,7 @@ function B2BPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [turnstileToken, setTurnstileToken] = useState("");
   const [captchaResetKey, setCaptchaResetKey] = useState(0);
+  const [submittedRequest, setSubmittedRequest] = useState(null);
   const [form, setForm] = useState({
     company: "",
     name: "",
@@ -2219,6 +2228,17 @@ function B2BPage() {
       setForm((current) => ({ ...current, type: formats[0] }));
     }
   }, [formats, form.type]);
+
+  useEffect(() => {
+    if (!submittedRequest) return undefined;
+
+    const handleKeyDown = (event) => {
+      if (event.key === "Escape") setSubmittedRequest(null);
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [submittedRequest]);
 
   const handleChange = (event) => {
     const { name, value } = event.target;
@@ -2247,6 +2267,10 @@ function B2BPage() {
     setCaptchaResetKey((current) => current + 1);
   }, []);
 
+  const closeSuccessModal = useCallback(() => {
+    setSubmittedRequest(null);
+  }, []);
+
   const handleSubmit = async (event) => {
     event.preventDefault();
 
@@ -2267,9 +2291,20 @@ function B2BPage() {
     setStatusType("success");
 
     try {
+      const requestPreview = {
+        company: form.company.trim(),
+        name: form.name.trim(),
+        phoneNumber: formatUzbekPhoneNumber(form.phoneNumber),
+        city: form.city.trim(),
+        type: form.type,
+        brands: form.brands.trim(),
+        comment: form.comment.trim(),
+      };
+
       await createPartnerRequest({ ...form, turnstileToken });
       setStatus(t.b2b.status);
       setStatusType("success");
+      setSubmittedRequest(requestPreview);
       resetTurnstile();
       setForm({
         company: "",
@@ -2300,6 +2335,18 @@ function B2BPage() {
       setIsSubmitting(false);
     }
   };
+
+  const successFields = submittedRequest
+    ? [
+        { label: t.b2b.name, value: submittedRequest.name },
+        { label: t.b2b.phone, value: submittedRequest.phoneNumber },
+        { label: t.b2b.city, value: submittedRequest.city },
+        { label: t.b2b.company, value: submittedRequest.company },
+        { label: t.b2b.formatLabel, value: submittedRequest.type },
+        { label: t.b2b.brands, value: submittedRequest.brands || t.b2b.emptyValue },
+        { label: t.b2b.comment, value: submittedRequest.comment || t.b2b.emptyValue },
+      ]
+    : [];
 
   return (
     <>
@@ -2399,6 +2446,33 @@ function B2BPage() {
           {status && <p className={`form-status${statusType === "error" ? " is-error" : ""}`}>{status}</p>}
         </form>
       </section>
+
+      {submittedRequest && (
+        <div className="request-success-modal" role="dialog" aria-modal="true" aria-labelledby="request-success-title">
+          <button className="request-success-modal__backdrop" type="button" aria-label={t.b2b.successClose} onClick={closeSuccessModal} />
+          <article className="request-success-modal__card">
+            <button className="request-success-modal__close" type="button" aria-label={t.b2b.successClose} onClick={closeSuccessModal}>
+              <X size={18} aria-hidden="true" />
+            </button>
+            <div className="request-success-modal__icon">
+              <CheckCircle2 size={30} aria-hidden="true" />
+            </div>
+            <h2 id="request-success-title">{t.b2b.successTitle}</h2>
+            <p>{t.b2b.successText}</p>
+            <dl>
+              {successFields.map((field) => (
+                <div key={field.label}>
+                  <dt>{field.label}</dt>
+                  <dd>{field.value}</dd>
+                </div>
+              ))}
+            </dl>
+            <AppButton type="button" icon={CheckCircle2} onClick={closeSuccessModal}>
+              {t.b2b.successClose}
+            </AppButton>
+          </article>
+        </div>
+      )}
     </>
   );
 }

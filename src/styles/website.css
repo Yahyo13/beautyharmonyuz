@@ -1713,6 +1713,120 @@ textarea:focus {
   color: #ffb6c1;
 }
 
+.request-success-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  isolation: isolate;
+}
+
+.request-success-modal__backdrop {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  background: rgba(23, 32, 42, 0.58);
+  backdrop-filter: blur(10px);
+  cursor: pointer;
+}
+
+.request-success-modal__card {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  gap: 16px;
+  width: min(560px, 100%);
+  max-height: calc(100svh - 48px);
+  overflow: auto;
+  padding: 30px;
+  border: 1px solid rgba(23, 32, 42, 0.1);
+  border-radius: 8px;
+  color: #17202a;
+  background:
+    linear-gradient(180deg, #ffffff 0%, #f7fff9 100%);
+  box-shadow: 0 30px 90px rgba(23, 32, 42, 0.28);
+}
+
+.request-success-modal__close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border: 0;
+  border-radius: 999px;
+  color: #364252;
+  background: #eef3f0;
+  cursor: pointer;
+}
+
+.request-success-modal__icon {
+  display: grid;
+  place-items: center;
+  width: 60px;
+  height: 60px;
+  border-radius: 999px;
+  color: #ffffff;
+  background: #1f9f6d;
+  box-shadow: 0 16px 36px rgba(31, 159, 109, 0.26);
+}
+
+.request-success-modal__card h2 {
+  margin: 0;
+  color: #17202a;
+  font-size: 2.05rem;
+  line-height: 1.08;
+}
+
+.request-success-modal__card p {
+  margin: 0;
+  color: #657181;
+  font-weight: 850;
+  line-height: 1.6;
+}
+
+.request-success-modal__card dl {
+  display: grid;
+  margin: 0;
+  overflow: hidden;
+  border: 1px solid rgba(23, 32, 42, 0.1);
+  border-radius: 8px;
+}
+
+.request-success-modal__card dl div {
+  display: grid;
+  grid-template-columns: 160px minmax(0, 1fr);
+  gap: 14px;
+  padding: 12px 14px;
+  background: rgba(255, 255, 255, 0.74);
+}
+
+.request-success-modal__card dl div + div {
+  border-top: 1px solid rgba(23, 32, 42, 0.08);
+}
+
+.request-success-modal__card dt {
+  color: #657181;
+  font-size: 0.74rem;
+  font-weight: 950;
+  text-transform: uppercase;
+}
+
+.request-success-modal__card dd {
+  margin: 0;
+  color: #17202a;
+  font-weight: 900;
+  word-break: break-word;
+}
+
+.request-success-modal__card .app-button {
+  width: 100%;
+}
+
 .admin-login-page,
 .admin-page {
   min-height: 76svh;
@@ -2498,6 +2612,23 @@ footer p {
 
   .partner-form {
     padding: 18px;
+  }
+
+  .request-success-modal {
+    padding: 14px;
+  }
+
+  .request-success-modal__card {
+    padding: 24px 18px 18px;
+  }
+
+  .request-success-modal__card h2 {
+    font-size: 1.72rem;
+  }
+
+  .request-success-modal__card dl div {
+    grid-template-columns: 1fr;
+    gap: 5px;
   }
 
   .admin-login-card {
