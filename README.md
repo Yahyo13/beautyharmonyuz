@@ -44,6 +44,9 @@ npm run catalog:update
 ADMIN_API_URL=адрес API с админами
 PARTNER_REQUESTS_API_URL=адрес API с B2B-заявками
 ADMIN_SESSION_SECRET=длинная-случайная-строка
+VITE_TURNSTILE_SITE_KEY=site key из Cloudflare Turnstile
+TURNSTILE_SECRET_KEY=secret key из Cloudflare Turnstile
+PARTNER_REQUEST_LIMIT_PER_MONTH=3
 ```
 
 В admin API запись админа должна иметь `login`, `name`, `active`, `role` и `passwordHash`. Хеш пароля можно создать командой:
@@ -51,6 +54,8 @@ ADMIN_SESSION_SECRET=длинная-случайная-строка
 ```bash
 npm run admin:hash -- "your-password"
 ```
+
+B2B-форма защищена Cloudflare Turnstile и лимитом `3` заявки в месяц с одного IP. Для изменения лимита поменяйте `PARTNER_REQUEST_LIMIT_PER_MONTH`.
 
 ## Заметка для передачи проекта
 

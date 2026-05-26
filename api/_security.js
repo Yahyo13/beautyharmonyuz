@@ -2,6 +2,7 @@ import { createHash, createHmac, pbkdf2Sync, randomBytes, timingSafeEqual } from
 
 export const sessionCookieName = "bh_admin_session";
 export const partnerRequestTypes = ["Оптовая Закупка", "Маркетплейс", "Розничная Сеть", "Дистрибуция"];
+export const monthlyPartnerRequestLimit = Number(process.env.PARTNER_REQUEST_LIMIT_PER_MONTH || 3);
 
 const localizedTypeMap = new Map([
   ["Оптовая Закупка", "Оптовая Закупка"],
@@ -30,6 +31,28 @@ export function sendJson(response, status, payload) {
   response.setHeader("Content-Type", "application/json; charset=utf-8");
   response.setHeader("Cache-Control", "no-store");
   response.end(JSON.stringify(payload));
+}
+
+export function getClientIp(request) {
+  const forwardedFor = request.headers["x-forwarded-for"];
+  const forwardedIp = Array.isArray(forwardedFor) ? forwardedFor[0] : forwardedFor;
+  const firstForwardedIp = forwardedIp?.split(",")[0]?.trim();
+
+  return (
+    request.headers["cf-connecting-ip"] ||
+    request.headers["x-real-ip"] ||
+    firstForwardedIp ||
+    request.socket?.remoteAddress ||
+    "unknown"
+  );
+}
+
+export function hashClientIp(ip) {
+  return createHmac("sha256", requiredEnv("ADMIN_SESSION_SECRET")).update(String(ip)).digest("hex");
+}
+
+export function getCurrentMonthKey() {
+  return new Date().toISOString().slice(0, 7);
 }
 
 export async function readJsonBody(request) {
@@ -98,7 +121,42 @@ export function validatePartnerRequest(form) {
     return { ok: false, message: "Phone number must include +998 and 9 local digits" };
   }
 
+  if (request.name.length > 80 || request.city.length > 80 || request.company.length > 120) {
+    return { ok: false, message: "Some fields are too long" };
+  }
+
+  if (request.brands.length > 220 || request.comment.length > 800) {
+    return { ok: false, message: "Message is too long" };
+  }
+
   return { ok: true, request };
+}
+
+export async function verifyTurnstileToken(token, ip) {
+  if (!token) return false;
+
+  const body = new URLSearchParams({
+    secret: requiredEnv("TURNSTILE_SECRET_KEY"),
+    response: token,
+  });
+
+  if (ip && ip !== "unknown") {
+    body.set("remoteip", ip);
+  }
+
+  const result = await fetchJson("https://challenges.cloudflare.com/turnstile/v0/siteverify", {
+    method: "POST",
+    body,
+  });
+
+  return result?.success === true;
+}
+
+export function hasReachedMonthlyRequestLimit(requests, ipHash, monthKey) {
+  if (!Array.isArray(requests)) return false;
+
+  const requestsThisMonth = requests.filter((item) => item.ipHash === ipHash && item.monthKey === monthKey).length;
+  return requestsThisMonth >= monthlyPartnerRequestLimit;
 }
 
 export function hashPassword(password) {
@@ -150,12 +208,14 @@ export function createSessionCookie(admin) {
     })
   ).toString("base64url");
   const value = `${payload}.${signPayload(payload)}`;
+  const secureAttribute = process.env.VERCEL ? " Secure;" : "";
 
-  return `${sessionCookieName}=${encodeURIComponent(value)}; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=28800`;
+  return `${sessionCookieName}=${encodeURIComponent(value)}; HttpOnly;${secureAttribute} SameSite=Lax; Path=/; Max-Age=28800`;
 }
 
 export function createExpiredSessionCookie() {
-  return `${sessionCookieName}=; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=0`;
+  const secureAttribute = process.env.VERCEL ? " Secure;" : "";
+  return `${sessionCookieName}=; HttpOnly;${secureAttribute} SameSite=Lax; Path=/; Max-Age=0`;
 }
 
 export function readAdminSession(request) {

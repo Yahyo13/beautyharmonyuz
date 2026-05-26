@@ -44,6 +44,7 @@ export function normalizePartnerRequest(form) {
     type: mapPartnerRequestType(form.type),
     brands: form.brands.trim(),
     comment: form.comment.trim(),
+    turnstileToken: form.turnstileToken || "",
     createdAt: new Date().toISOString(),
   };
 }
@@ -56,11 +57,15 @@ export async function createPartnerRequest(form) {
     body: JSON.stringify(normalizePartnerRequest(form)),
   });
 
+  const payload = await response.json().catch(() => ({}));
+
   if (!response.ok) {
-    throw new Error("Partner request was not saved");
+    const error = new Error(payload.message || "Partner request was not saved");
+    error.code = payload.code;
+    throw error;
   }
 
-  return response.json();
+  return payload;
 }
 
 export async function fetchPartnerRequests() {

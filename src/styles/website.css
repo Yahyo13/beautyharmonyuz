@@ -1695,6 +1695,24 @@ textarea:focus {
   color: #ffb6c1;
 }
 
+.turnstile-box {
+  display: grid;
+  place-items: start;
+  min-height: 70px;
+  margin-top: 16px;
+}
+
+.captcha-note {
+  margin: 16px 0 0;
+  color: #ffe28b;
+  font-weight: 900;
+  line-height: 1.55;
+}
+
+.captcha-note.is-error {
+  color: #ffb6c1;
+}
+
 .admin-login-page,
 .admin-page {
   min-height: 76svh;

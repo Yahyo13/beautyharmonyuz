@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft,
   ArrowRight,
@@ -45,6 +45,7 @@ import { uzumCatalogProductsRaw } from "./data/uzumCatalogProducts.generated";
 
 const uzumShopUrl = "https://uzum.uz/uz/shop/beautyh";
 const heroImageUrl = `${import.meta.env.BASE_URL}beauty-harmony-hero.png`;
+const turnstileSiteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY || "";
 const languageOptions = [
   { value: "ru", label: "RU" },
   { value: "uz", label: "UZ" },
@@ -1446,6 +1447,73 @@ function AppButton({ href, children, variant = "primary", icon: Icon, type = "bu
   );
 }
 
+function TurnstileWidget({ language, onVerify, onExpire, onError }) {
+  const containerRef = useRef(null);
+  const widgetIdRef = useRef(null);
+
+  useEffect(() => {
+    if (!turnstileSiteKey) return undefined;
+
+    let scriptElement = document.querySelector("[data-turnstile-script='true']");
+    let isMounted = true;
+
+    const renderWidget = () => {
+      if (!isMounted || !containerRef.current || !window.turnstile || widgetIdRef.current !== null) return;
+
+      widgetIdRef.current = window.turnstile.render(containerRef.current, {
+        sitekey: turnstileSiteKey,
+        theme: "light",
+        action: "b2b-request",
+        callback: onVerify,
+        "expired-callback": onExpire,
+        "error-callback": onError,
+      });
+    };
+
+    if (!scriptElement) {
+      scriptElement = document.createElement("script");
+      scriptElement.src = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
+      scriptElement.async = true;
+      scriptElement.defer = true;
+      scriptElement.dataset.turnstileScript = "true";
+      document.head.appendChild(scriptElement);
+    }
+
+    if (window.turnstile) {
+      renderWidget();
+    } else {
+      scriptElement.addEventListener("load", renderWidget);
+    }
+
+    return () => {
+      isMounted = false;
+      scriptElement?.removeEventListener("load", renderWidget);
+
+      if (window.turnstile && widgetIdRef.current !== null) {
+        window.turnstile.remove(widgetIdRef.current);
+      }
+
+      widgetIdRef.current = null;
+    };
+  }, [onError, onExpire, onVerify]);
+
+  if (!turnstileSiteKey) {
+    return (
+      <p className="captcha-note is-error">
+        {language === "uz"
+          ? "Saytda captcha sozlanmagan. Administrator Vercel sozlamalariga Turnstile kalitini qo'shishi kerak."
+          : "Капча не настроена. Администратору нужно добавить Turnstile ключ в Vercel."}
+      </p>
+    );
+  }
+
+  return (
+    <div className="turnstile-box">
+      <div ref={containerRef} />
+    </div>
+  );
+}
+
 function Shell({ route, children }) {
   const { language, setLanguage, t } = useLocale();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -2130,6 +2198,8 @@ function B2BPage() {
   const [status, setStatus] = useState("");
   const [statusType, setStatusType] = useState("success");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [turnstileToken, setTurnstileToken] = useState("");
+  const [captchaResetKey, setCaptchaResetKey] = useState(0);
   const [form, setForm] = useState({
     company: "",
     name: "",
@@ -2156,6 +2226,15 @@ function B2BPage() {
     }));
   };
 
+  const handleTurnstileVerify = useCallback((token) => {
+    setTurnstileToken(token);
+  }, []);
+
+  const resetTurnstile = useCallback(() => {
+    setTurnstileToken("");
+    setCaptchaResetKey((current) => current + 1);
+  }, []);
+
   const handleSubmit = async (event) => {
     event.preventDefault();
 
@@ -2165,14 +2244,21 @@ function B2BPage() {
       return;
     }
 
+    if (!turnstileToken) {
+      setStatus(language === "uz" ? "Avval captcha tekshiruvidan o'ting." : "Сначала подтвердите, что вы человек.");
+      setStatusType("error");
+      return;
+    }
+
     setIsSubmitting(true);
     setStatus(language === "uz" ? "Ariza yuborilmoqda..." : "Отправляем заявку...");
     setStatusType("success");
 
     try {
-      await createPartnerRequest(form);
+      await createPartnerRequest({ ...form, turnstileToken });
       setStatus(t.b2b.status);
       setStatusType("success");
+      resetTurnstile();
       setForm({
         company: "",
         name: "",
@@ -2182,13 +2268,22 @@ function B2BPage() {
         brands: "Dr.Sante, Fresh Juice, Green Pharmacy",
         comment: "",
       });
-    } catch {
+    } catch (error) {
       setStatus(
         language === "uz"
-          ? "Arizani yuborib bo'lmadi. Internetni tekshiring yoki keyinroq urinib ko'ring."
-          : "Не удалось отправить заявку. Проверьте интернет или попробуйте позже."
+          ? error.code === "MONTHLY_LIMIT_REACHED"
+            ? "Bu IP manzildan oyiga 3 ta ariza yuborish mumkin."
+            : error.code === "TURNSTILE_FAILED"
+              ? "Captcha tekshiruvi o'tmadi. Qaytadan urinib ko'ring."
+              : "Arizani yuborib bo'lmadi. Internetni tekshiring yoki keyinroq urinib ko'ring."
+          : error.code === "MONTHLY_LIMIT_REACHED"
+            ? "С этого IP можно отправить только 3 заявки в месяц."
+            : error.code === "TURNSTILE_FAILED"
+              ? "Проверка капчи не прошла. Попробуйте ещё раз."
+              : "Не удалось отправить заявку. Проверьте интернет или попробуйте позже."
       );
       setStatusType("error");
+      resetTurnstile();
     } finally {
       setIsSubmitting(false);
     }
@@ -2276,6 +2371,14 @@ function B2BPage() {
               placeholder={t.b2b.commentPlaceholder}
             />
           </label>
+
+          <TurnstileWidget
+            key={captchaResetKey}
+            language={language}
+            onVerify={handleTurnstileVerify}
+            onExpire={() => setTurnstileToken("")}
+            onError={resetTurnstile}
+          />
 
           <AppButton type="submit" icon={Send} disabled={isSubmitting}>
             {isSubmitting ? (language === "uz" ? "Yuborilmoqda..." : "Отправка...") : t.b2b.submit}
