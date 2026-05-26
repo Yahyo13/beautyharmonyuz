@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 
 const projectRoot = fileURLToPath(new URL("..", import.meta.url));
 const root = join(fileURLToPath(new URL("..", import.meta.url)), "dist");
-const port = Number(process.env.PORT || 4173);
+const preferredPort = Number(process.env.PORT || 4173);
 const apiHandlers = new Map([
   ["/api/admin-login", () => import("../api/admin-login.js")],
   ["/api/admin-logout", () => import("../api/admin-logout.js")],
@@ -72,6 +72,26 @@ const server = createServer(async (request, response) => {
 
 await loadLocalEnv();
 
-server.listen(port, "127.0.0.1", () => {
-  console.log(`Beauty Harmony site is running at http://127.0.0.1:${port}`);
-});
+function listen(port) {
+  const handleListening = () => {
+    server.off("error", handleError);
+    console.log(`Beauty Harmony site is running at http://127.0.0.1:${port}`);
+  };
+
+  const handleError = (error) => {
+    server.off("listening", handleListening);
+
+    if (error.code === "EADDRINUSE" && !process.env.PORT) {
+      listen(port + 1);
+      return;
+    }
+
+    throw error;
+  };
+
+  server.once("error", handleError);
+  server.once("listening", handleListening);
+  server.listen(port, "127.0.0.1");
+}
+
+listen(preferredPort);

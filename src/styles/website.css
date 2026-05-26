@@ -140,6 +140,21 @@
   transition: transform 180ms ease, box-shadow 180ms ease;
 }
 
+.app-button.app-button > span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  color: inherit;
+  text-align: center;
+  line-height: 1.15;
+}
+
+.app-button.app-button > svg {
+  flex: 0 0 auto;
+  color: currentColor;
+}
+
 .app-button:hover {
   transform: translateY(-2px);
   box-shadow: 0 20px 38px rgba(255, 93, 117, 0.34);
@@ -839,7 +854,7 @@ footer,
 .catalog-summary span {
   display: block;
   margin-bottom: 12px;
-  color: #ff5d75;
+  color: #ffffff;
   font-size: 0.82rem;
   font-weight: 1000;
   letter-spacing: 0;
