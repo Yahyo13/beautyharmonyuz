@@ -2507,6 +2507,7 @@ function AdminPage() {
   const [loadStatus, setLoadStatus] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [deletingRequestId, setDeletingRequestId] = useState("");
+  const [requestPendingDelete, setRequestPendingDelete] = useState(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -2543,6 +2544,17 @@ function AdminPage() {
     }
   }, [loadRequests, session]);
 
+  useEffect(() => {
+    if (!requestPendingDelete || deletingRequestId) return undefined;
+
+    const handleKeyDown = (event) => {
+      if (event.key === "Escape") setRequestPendingDelete(null);
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [deletingRequestId, requestPendingDelete]);
+
   const handleCredentialChange = (event) => {
     const { name, value } = event.target;
     setCredentials((current) => ({ ...current, [name]: value }));
@@ -2568,22 +2580,28 @@ function AdminPage() {
     await logoutAdmin();
     setSession(null);
     setRequests([]);
+    setRequestPendingDelete(null);
   };
 
-  const handleDeleteRequest = async (request) => {
+  const openDeleteModal = (request) => {
     if (!request.id || deletingRequestId) return;
+    setRequestPendingDelete(request);
+  };
 
-    const requestName = getRequestField(request, ["name"]) || request.id;
-    const confirmed = window.confirm(`Удалить заявку "${requestName}"?`);
+  const closeDeleteModal = () => {
+    if (!deletingRequestId) setRequestPendingDelete(null);
+  };
 
-    if (!confirmed) return;
+  const confirmDeleteRequest = async () => {
+    if (!requestPendingDelete?.id || deletingRequestId) return;
 
-    setDeletingRequestId(request.id);
+    setDeletingRequestId(requestPendingDelete.id);
     setLoadStatus("");
 
     try {
-      await deletePartnerRequest(request.id);
-      setRequests((current) => current.filter((item) => item.id !== request.id));
+      await deletePartnerRequest(requestPendingDelete.id);
+      setRequests((current) => current.filter((item) => item.id !== requestPendingDelete.id));
+      setRequestPendingDelete(null);
     } catch {
       setLoadStatus("Не удалось удалить заявку. Попробуйте обновить страницу.");
     } finally {
@@ -2777,7 +2795,7 @@ function AdminPage() {
                   <button
                     className="admin-delete-button"
                     type="button"
-                    onClick={() => handleDeleteRequest(request)}
+                    onClick={() => openDeleteModal(request)}
                     disabled={!request.id || isDeleting}
                     title="Удалить заявку"
                   >
@@ -2794,6 +2812,57 @@ function AdminPage() {
           <Search size={32} aria-hidden="true" />
           <h2>Заявки не найдены</h2>
           <p>Попробуйте очистить поиск или обновить список.</p>
+        </div>
+      )}
+
+      {requestPendingDelete && (
+        <div className="admin-delete-modal" role="dialog" aria-modal="true" aria-labelledby="admin-delete-title">
+          <button
+            className="admin-delete-modal__backdrop"
+            type="button"
+            aria-label="Отмена"
+            onClick={closeDeleteModal}
+            disabled={Boolean(deletingRequestId)}
+          />
+          <article className="admin-delete-modal__card">
+            <button
+              className="admin-delete-modal__close"
+              type="button"
+              aria-label="Отмена"
+              onClick={closeDeleteModal}
+              disabled={Boolean(deletingRequestId)}
+            >
+              <X size={18} aria-hidden="true" />
+            </button>
+            <div className="admin-delete-modal__icon">
+              <Trash2 size={28} aria-hidden="true" />
+            </div>
+            <h2 id="admin-delete-title">Подтвердить удаление</h2>
+            <p>
+              Вы точно хотите удалить заявку
+              {" "}
+              <strong>{getRequestField(requestPendingDelete, ["name"]) || `#${requestPendingDelete.id}`}</strong>
+              ? Это действие нельзя отменить.
+            </p>
+            <dl>
+              <div>
+                <dt>Телефон</dt>
+                <dd>{getRequestField(requestPendingDelete, ["phoneNumber", "phone", "phone number"]) || "Не указан"}</dd>
+              </div>
+              <div>
+                <dt>Компания</dt>
+                <dd>{getRequestField(requestPendingDelete, ["company"]) || "Не указана"}</dd>
+              </div>
+            </dl>
+            <div className="admin-delete-modal__actions">
+              <button className="admin-delete-modal__cancel" type="button" onClick={closeDeleteModal} disabled={Boolean(deletingRequestId)}>
+                Отмена
+              </button>
+              <button className="admin-delete-modal__confirm" type="button" onClick={confirmDeleteRequest} disabled={Boolean(deletingRequestId)}>
+                {deletingRequestId ? "Удаляем..." : "Подтвердить"}
+              </button>
+            </div>
+          </article>
         </div>
       )}
     </section>
