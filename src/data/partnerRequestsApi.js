@@ -87,6 +87,21 @@ export async function fetchPartnerRequests() {
   });
 }
 
+export async function deletePartnerRequest(id) {
+  const response = await fetch(`/api/admin-requests?id=${encodeURIComponent(id)}`, {
+    method: "DELETE",
+    credentials: "same-origin",
+  });
+
+  const payload = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    throw new Error(payload.message || "Partner request was not deleted");
+  }
+
+  return payload;
+}
+
 export async function loginAdmin(credentials) {
   const response = await fetch("/api/admin-login", {
     method: "POST",

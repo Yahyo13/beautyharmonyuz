@@ -1961,6 +1961,40 @@ textarea:focus {
   line-height: 1.55;
 }
 
+.admin-request-card__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.admin-delete-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 38px;
+  padding: 9px 12px;
+  border: 0;
+  border-radius: 999px;
+  color: #ffffff;
+  background: #ce2450;
+  font-weight: 900;
+  cursor: pointer;
+  transition: transform 180ms ease, box-shadow 180ms ease, opacity 180ms ease;
+}
+
+.admin-delete-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 14px 28px rgba(206, 36, 80, 0.25);
+}
+
+.admin-delete-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.58;
+  transform: none;
+}
+
 .admin-empty {
   display: grid;
   place-items: center;
@@ -2456,7 +2490,8 @@ footer p {
   }
 
   .source-panel,
-  .market-cta {
+  .market-cta,
+  .admin-request-card__footer {
     align-items: flex-start;
     flex-direction: column;
   }

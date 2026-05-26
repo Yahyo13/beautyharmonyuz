@@ -28,11 +28,13 @@ import {
   Sprout,
   Store,
   Tags,
+  Trash2,
   Truck,
   X,
 } from "lucide-react";
 import {
   createPartnerRequest,
+  deletePartnerRequest,
   fetchPartnerRequests,
   formatUzbekPhoneNumber,
   getAdminSession,
@@ -2230,6 +2232,10 @@ function B2BPage() {
     setTurnstileToken(token);
   }, []);
 
+  const handleTurnstileExpire = useCallback(() => {
+    setTurnstileToken("");
+  }, []);
+
   const resetTurnstile = useCallback(() => {
     setTurnstileToken("");
     setCaptchaResetKey((current) => current + 1);
@@ -2376,7 +2382,7 @@ function B2BPage() {
             key={captchaResetKey}
             language={language}
             onVerify={handleTurnstileVerify}
-            onExpire={() => setTurnstileToken("")}
+            onExpire={handleTurnstileExpire}
             onError={resetTurnstile}
           />
 
@@ -2420,6 +2426,7 @@ function AdminPage() {
   const [typeFilter, setTypeFilter] = useState("all");
   const [loadStatus, setLoadStatus] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [deletingRequestId, setDeletingRequestId] = useState("");
 
   useEffect(() => {
     let isMounted = true;
@@ -2481,6 +2488,27 @@ function AdminPage() {
     await logoutAdmin();
     setSession(null);
     setRequests([]);
+  };
+
+  const handleDeleteRequest = async (request) => {
+    if (!request.id || deletingRequestId) return;
+
+    const requestName = getRequestField(request, ["name"]) || request.id;
+    const confirmed = window.confirm(`Удалить заявку "${requestName}"?`);
+
+    if (!confirmed) return;
+
+    setDeletingRequestId(request.id);
+    setLoadStatus("");
+
+    try {
+      await deletePartnerRequest(request.id);
+      setRequests((current) => current.filter((item) => item.id !== request.id));
+    } catch {
+      setLoadStatus("Не удалось удалить заявку. Попробуйте обновить страницу.");
+    } finally {
+      setDeletingRequestId("");
+    }
   };
 
   const filteredRequests = useMemo(() => {
@@ -2633,6 +2661,7 @@ function AdminPage() {
             const phoneNumber = getRequestField(request, ["phoneNumber", "phone", "phone number"]);
             const comment = getRequestField(request, ["comment", "message"]);
             const requestType = getRequestField(request, ["type", "format"]);
+            const isDeleting = deletingRequestId === request.id;
 
             return (
               <article className="admin-request-card" key={request.id || `${request.name}-${request.createdAt}`}>
@@ -2663,7 +2692,19 @@ function AdminPage() {
                 </dl>
 
                 {comment && <p>{comment}</p>}
-                <small>{formatRequestDate(request.createdAt)}</small>
+                <div className="admin-request-card__footer">
+                  <small>{formatRequestDate(request.createdAt)}</small>
+                  <button
+                    className="admin-delete-button"
+                    type="button"
+                    onClick={() => handleDeleteRequest(request)}
+                    disabled={!request.id || isDeleting}
+                    title="Удалить заявку"
+                  >
+                    <Trash2 size={17} aria-hidden="true" />
+                    <span>{isDeleting ? "Удаляем..." : "Удалить"}</span>
+                  </button>
+                </div>
               </article>
             );
           })}
