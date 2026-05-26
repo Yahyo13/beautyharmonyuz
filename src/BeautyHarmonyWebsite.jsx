@@ -2236,6 +2236,12 @@ function B2BPage() {
     setTurnstileToken("");
   }, []);
 
+  const handleTurnstileError = useCallback(() => {
+    setTurnstileToken("");
+    setStatus(language === "uz" ? "Captcha yuklanmadi. Sahifani yangilab ko'ring." : "Капча не загрузилась. Обновите страницу и попробуйте ещё раз.");
+    setStatusType("error");
+  }, [language]);
+
   const resetTurnstile = useCallback(() => {
     setTurnstileToken("");
     setCaptchaResetKey((current) => current + 1);
@@ -2383,7 +2389,7 @@ function B2BPage() {
             language={language}
             onVerify={handleTurnstileVerify}
             onExpire={handleTurnstileExpire}
-            onError={resetTurnstile}
+            onError={handleTurnstileError}
           />
 
           <AppButton type="submit" icon={Send} disabled={isSubmitting}>
