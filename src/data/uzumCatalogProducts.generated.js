@@ -1,4 +1,4 @@
-﻿export const catalogProductsRaw = [
+export const uzumCatalogProductsRaw = [
     {
         "id":  "soch-tokilishiga-qarshi-183367",
         "title":  "Soch to‘kilishiga qarshi balzam-niqob, Uchlik kuchi, Uy tabibi, 500 ml",

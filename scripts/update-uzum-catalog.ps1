@@ -48,8 +48,10 @@ for ($page = 1; $page -le 6; $page++) {
 
 $products = @($productsByHref.Values)
 $json = $products | ConvertTo-Json -Depth 5
-$content = "export const catalogProductsRaw = $json;`n"
-$target = Join-Path (Resolve-Path ".").Path "src\catalogProducts.generated.js"
+$content = "export const uzumCatalogProductsRaw = $json;`n"
+$targetDir = Join-Path (Resolve-Path ".").Path "src\data"
+New-Item -ItemType Directory -Path $targetDir -Force | Out-Null
+$target = Join-Path $targetDir "uzumCatalogProducts.generated.js"
 Set-Content -Path $target -Value $content -Encoding utf8
 
-Write-Host "Saved $($products.Count) products to src/catalogProducts.generated.js"
+Write-Host "Saved $($products.Count) products to src/data/uzumCatalogProducts.generated.js"

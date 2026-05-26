@@ -28,10 +28,10 @@ import {
   Truck,
   X,
 } from "lucide-react";
-import { catalogProductsRaw } from "./catalogProducts.generated";
+import { uzumCatalogProductsRaw } from "./data/uzumCatalogProducts.generated";
 
 const uzumShopUrl = "https://uzum.uz/uz/shop/beautyh";
-const heroImageUrl = `${import.meta.env.BASE_URL}hero-cosmetics.png`;
+const heroImageUrl = `${import.meta.env.BASE_URL}beauty-harmony-hero.png`;
 const languageOptions = [
   { value: "ru", label: "RU" },
   { value: "uz", label: "UZ" },
@@ -1164,7 +1164,7 @@ const curatedCatalogProducts = [
 ];
 
 const curatedRussianNamesByHref = new Map(curatedCatalogProducts.map((product) => [product.href, product.name]));
-const catalogProducts = catalogProductsRaw.map(enrichCatalogProduct);
+const catalogProducts = uzumCatalogProductsRaw.map(enrichCatalogProduct);
 
 const productSourceNote =
   "Цены, изображения и ссылки взяты со страниц магазина Beauty Harmony в Uzum Market 24 мая 2026. Основной прайс - обычная цена, цена Uzum-karta показана отдельно.";
@@ -1442,7 +1442,7 @@ function Shell({ route, children }) {
       <nav className="topbar">
         <a className="brand-mark" href="#/" aria-label="Beauty Harmony" onClick={scrollToHomeTop}>
           <span>BH</span>
-          <strong>Beauty Harmony</strong>
+          <strong>Beauty</strong>
         </a>
 
         <div className={`nav-links${isMenuOpen ? " is-open" : ""}`} id="site-nav">
@@ -2287,7 +2287,7 @@ function NotFoundPage() {
   );
 }
 
-export function App() {
+export function BeautyHarmonyWebsite() {
   const route = useHashRoute();
   const [language, setLanguage] = useState(() => localStorage.getItem("beauty-harmony-language") || "ru");
   useRevealAnimation(route);

@@ -8,7 +8,8 @@
     "vite:dev": "vite --host 0.0.0.0",
     "build": "vite build --base=./",
     "preview": "vite preview --host 0.0.0.0",
-    "serve": "node scripts/serve-static.mjs"
+    "serve": "node scripts/serve-production-build.mjs",
+    "catalog:update": "powershell -ExecutionPolicy Bypass -File scripts/update-uzum-catalog.ps1"
   },
   "dependencies": {
     "@vitejs/plugin-react": "^4.3.4",
