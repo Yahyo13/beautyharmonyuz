@@ -58,10 +58,29 @@ import {
 } from "./data/catalogData";
 import { useHashRoute, useRevealAnimation } from "./hooks/usePageEffects";
 
+/*
+  BeautyHarmonyWebsite.jsx - главный файл сайта.
+
+  Что здесь лежит:
+  1. Общие настройки сайта: картинки, логотип, ключ капчи.
+  2. Общие маленькие компоненты: кнопка, капча, шапка сайта.
+  3. Блоки брендов и каталога.
+  4. Страницы: главная, каталог, бренд, B2B, админка, 404.
+  5. Роутер внизу файла: решает, какую страницу показать по адресу #/...
+
+  Большие данные не здесь:
+  - src/data/siteContent.js: тексты сайта, переводы, бренды.
+  - src/data/catalogData.js: товары, категории, логика каталога.
+  - src/data/partnerRequestsApi.js: запросы B2B и админки к API.
+*/
+
+// Общие настройки и env-переменные.
 const heroImageUrl = `${import.meta.env.BASE_URL}beauty-harmony-hero.png`;
 const logoUrl = `${import.meta.env.BASE_URL}BH_Logo.png`;
 const turnstileSiteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY || "";
+const defaultPartnerBrands = "Dr.Sante, Fresh Juice, Green Pharmacy";
 
+// Контекст языка. Через него любой компонент получает language и t.
 const LocaleContext = React.createContext({
   language: "ru",
   setLanguage: () => {},
@@ -72,6 +91,7 @@ function useLocale() {
   return React.useContext(LocaleContext);
 }
 
+// Общая кнопка сайта. Используется как <a>, если передан href, и как <button> без href.
 function AppButton({ href, children, variant = "primary", icon: Icon, type = "button", onClick, disabled = false }) {
   const className = `app-button ${variant}`;
 
@@ -93,6 +113,7 @@ function AppButton({ href, children, variant = "primary", icon: Icon, type = "bu
   );
 }
 
+// Cloudflare Turnstile. Компонент получает token и отдаёт его B2B-форме через onVerify.
 function TurnstileWidget({ language, onVerify, onExpire, onError }) {
   const containerRef = useRef(null);
   const widgetIdRef = useRef(null);
@@ -160,6 +181,8 @@ function TurnstileWidget({ language, onVerify, onExpire, onError }) {
   );
 }
 
+// === Каркас сайта ===
+// Шапка, меню, переключатель языка и место, куда подставляется текущая страница.
 function Shell({ route, children }) {
   const { language, setLanguage, t } = useLocale();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -238,6 +261,8 @@ function Shell({ route, children }) {
   );
 }
 
+// === Визуальная карточка бренда ===
+// Небольшой декоративный mockup товара, который показывается на главной и страницах брендов.
 function ProductMockup({ brand, compact = false }) {
   const { language } = useLocale();
   const copy = getBrandCopy(brand, language);
@@ -268,6 +293,7 @@ function ProductMockup({ brand, compact = false }) {
   );
 }
 
+// Карточка бренда в списке брендов.
 function BrandCard({ brand }) {
   const { language, t } = useLocale();
   const copy = getBrandCopy(brand, language);
@@ -307,6 +333,8 @@ function BrandCard({ brand }) {
   );
 }
 
+// === Главная страница ===
+// Первый экран, преимущества, превью каталога, бренды и B2B-блок.
 function HomePage() {
   const { language, t } = useLocale();
   const featured = brands.slice(0, 3).map((brand) => getBrandCopy(brand, language));
@@ -425,6 +453,7 @@ function HomePage() {
   );
 }
 
+// Короткое превью каталога на главной странице.
 function CatalogPreview() {
   const { language, t } = useLocale();
   const previewProducts = [
@@ -461,6 +490,7 @@ function CatalogPreview() {
   );
 }
 
+// Страница/секция со всеми брендами.
 function BrandsSection() {
   const { t } = useLocale();
 
@@ -481,6 +511,8 @@ function BrandsSection() {
   );
 }
 
+// === Каталог ===
+// Поиск, фильтр по категориям, сортировка и список товаров.
 function CatalogPage() {
   const { language, t } = useLocale();
   const [query, setQuery] = useState("");
@@ -643,6 +675,7 @@ function CatalogPage() {
   );
 }
 
+// Одна карточка товара внутри каталога.
 function CatalogProductCard({ product }) {
   const { language, t } = useLocale();
   const brand = getProductBrand(product);
@@ -698,6 +731,8 @@ function CatalogProductCard({ product }) {
   );
 }
 
+// === Страница одного бренда ===
+// Показывает описание бренда, факты, товары и похожие бренды.
 function BrandPage({ brand }) {
   const { language, t } = useLocale();
   const copy = getBrandCopy(brand, language);
@@ -839,6 +874,20 @@ function BrandPage({ brand }) {
   );
 }
 
+function getB2BSubmitErrorMessage(error, language) {
+  if (language === "uz") {
+    if (error.code === "MONTHLY_LIMIT_REACHED") return "Bu IP manzildan oyiga 3 ta ariza yuborish mumkin.";
+    if (error.code === "TURNSTILE_FAILED") return "Captcha tekshiruvi o'tmadi. Qaytadan urinib ko'ring.";
+    return "Arizani yuborib bo'lmadi. Internetni tekshiring yoki keyinroq urinib ko'ring.";
+  }
+
+  if (error.code === "MONTHLY_LIMIT_REACHED") return "С этого IP можно отправить только 3 заявки в месяц.";
+  if (error.code === "TURNSTILE_FAILED") return "Проверка капчи не прошла. Попробуйте ещё раз.";
+  return "Не удалось отправить заявку. Проверьте интернет или попробуйте позже.";
+}
+
+// === B2B-страница ===
+// Форма для партнёров: проверяет телефон, капчу, отправляет заявку и показывает модалку успеха.
 function B2BPage() {
   const { language, t } = useLocale();
   const [status, setStatus] = useState("");
@@ -853,7 +902,7 @@ function B2BPage() {
     phoneNumber: "+998 ",
     city: "",
     type: t.b2b.formats[0],
-    brands: "Dr.Sante, Fresh Juice, Green Pharmacy",
+    brands: defaultPartnerBrands,
     comment: "",
   });
 
@@ -948,23 +997,11 @@ function B2BPage() {
         phoneNumber: "+998 ",
         city: "",
         type: formats[0],
-        brands: "Dr.Sante, Fresh Juice, Green Pharmacy",
+        brands: defaultPartnerBrands,
         comment: "",
       });
     } catch (error) {
-      setStatus(
-        language === "uz"
-          ? error.code === "MONTHLY_LIMIT_REACHED"
-            ? "Bu IP manzildan oyiga 3 ta ariza yuborish mumkin."
-            : error.code === "TURNSTILE_FAILED"
-              ? "Captcha tekshiruvi o'tmadi. Qaytadan urinib ko'ring."
-              : "Arizani yuborib bo'lmadi. Internetni tekshiring yoki keyinroq urinib ko'ring."
-          : error.code === "MONTHLY_LIMIT_REACHED"
-            ? "С этого IP можно отправить только 3 заявки в месяц."
-            : error.code === "TURNSTILE_FAILED"
-              ? "Проверка капчи не прошла. Попробуйте ещё раз."
-              : "Не удалось отправить заявку. Проверьте интернет или попробуйте позже."
-      );
+      setStatus(getB2BSubmitErrorMessage(error, language));
       setStatusType("error");
       resetTurnstile();
     } finally {
@@ -1113,10 +1150,13 @@ function B2BPage() {
   );
 }
 
+// === Вспомогательные функции админки ===
+// Старые и новые заявки могут иметь разные названия полей, поэтому берём первое найденное.
 function getRequestField(request, keys) {
   return keys.map((key) => request?.[key]).find((value) => value !== undefined && value !== null && String(value).trim()) || "";
 }
 
+// Превращает дату из API в читаемый формат для таблицы заявок.
 function formatRequestDate(value) {
   if (!value) return "Дата не указана";
   const date = new Date(value);
@@ -1131,6 +1171,8 @@ function formatRequestDate(value) {
   }).format(date);
 }
 
+// === Админ-панель ===
+// Логин, список B2B-заявок, поиск, фильтр и удаление заявок через подтверждение.
 function AdminPage() {
   const [session, setSession] = useState(null);
   const [isCheckingSession, setIsCheckingSession] = useState(true);
@@ -1504,6 +1546,7 @@ function AdminPage() {
   );
 }
 
+// Общий блок-ссылка на Uzum Market.
 function MarketCta() {
   const { t } = useLocale();
 
@@ -1521,6 +1564,7 @@ function MarketCta() {
   );
 }
 
+// Подвал сайта.
 function Footer() {
   const { language, t } = useLocale();
 
@@ -1541,6 +1585,7 @@ function Footer() {
   );
 }
 
+// Страница 404, если пользователь открыл неизвестный адрес.
 function NotFoundPage() {
   const { t } = useLocale();
 
@@ -1555,6 +1600,8 @@ function NotFoundPage() {
   );
 }
 
+// === Главный роутер сайта ===
+// Смотрит на адрес после # и решает, какую страницу показать.
 export function BeautyHarmonyWebsite() {
   const route = useHashRoute();
   const [language, setLanguage] = useState(() => localStorage.getItem("beauty-harmony-language") || "ru");
