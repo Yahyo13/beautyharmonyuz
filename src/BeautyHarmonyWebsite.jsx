@@ -6,6 +6,7 @@ import {
   CheckCircle2,
   Handshake,
   HeartHandshake,
+  Instagram,
   Leaf,
   Lock,
   LogOut,
@@ -77,13 +78,15 @@ import { useHashRoute, useRevealAnimation } from "./hooks/usePageEffects";
 // Общие настройки и env-переменные.
 const heroImageUrl = `${import.meta.env.BASE_URL}beauty-harmony-hero.png`;
 const logoUrl = `${import.meta.env.BASE_URL}BH_Logo.png`;
+const instagramUrl = "https://www.instagram.com/dr.sante_uz/";
+const telegramBotUrl = "https://t.me/beautyharmonyuz_bot";
 const turnstileSiteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY || "";
 const defaultPartnerBrands = "Dr.Sante, Fresh Juice, Green Pharmacy";
 
 // Контекст языка. Через него любой компонент получает language и t.
 const LocaleContext = React.createContext({
   language: "ru",
-  setLanguage: () => {},
+  setLanguage: () => { },
   t: {},
 });
 
@@ -1574,12 +1577,30 @@ function Footer() {
         <strong>Beauty Harmony</strong>
         <p>{t.footer.text}</p>
       </div>
-      <div className="source-links">
-        {sources.map(([label, href]) => (
-          <a href={href} target="_blank" rel="noreferrer" key={href}>
-            {language === "uz" && label === "История Elfa Group" ? "Elfa Group tarixi" : language === "uz" && label === "ЕвроТек" ? "EuroTek" : label}
+      <div className="footer-link-stack">
+        <div className="social-links" aria-label="Beauty Harmony social links">
+          <a className="social-link" href={instagramUrl} target="_blank" rel="noreferrer">
+            <Instagram size={18} aria-hidden="true" />
+            <span>
+              <strong>Instagram</strong>
+              <small>@dr.sante_uz</small>
+            </span>
           </a>
-        ))}
+          <a className="social-link" href={telegramBotUrl} target="_blank" rel="noreferrer">
+            <Send size={18} aria-hidden="true" />
+            <span>
+              <strong>Telegram bot</strong>
+              <small>@beautyharmonyuz_bot</small>
+            </span>
+          </a>
+        </div>
+        <div className="source-links">
+          {sources.map(([label, href]) => (
+            <a href={href} target="_blank" rel="noreferrer" key={href}>
+              {language === "uz" && label === "История Elfa Group" ? "Elfa Group tarixi" : language === "uz" && label === "ЕвроТек" ? "EuroTek" : label}
+            </a>
+          ))}
+        </div>
       </div>
     </footer>
   );
