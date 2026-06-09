@@ -1127,7 +1127,8 @@ footer,
   place-items: center;
   min-height: 316px;
   padding: 22px;
-  background: #ffffff;
+  background:
+    radial-gradient(circle at 50% 28%, rgba(255, 255, 255, 0.96), rgba(247, 249, 248, 0.86) 62%, #f2f5f4 100%);
 }
 
 .product-card-site__image img {
@@ -1135,7 +1136,8 @@ footer,
   max-height: 292px;
   object-fit: contain;
   border-radius: 18px;
-  background: #ffffff;
+  background: transparent;
+  filter: drop-shadow(0 18px 22px rgba(26, 38, 48, 0.1));
   transition: transform 200ms ease;
 }
 
