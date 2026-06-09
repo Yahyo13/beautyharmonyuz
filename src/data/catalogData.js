@@ -11,7 +11,7 @@ export const catalogFallbackSource = {
 };
 
 const uzumShopUrl = "https://uzum.uz/uz/shop/beautyh";
-const imageBase = `${import.meta.env.BASE_URL}products/dr-sante-v2/`;
+const imageBase = `${import.meta.env.BASE_URL}products/dr-sante-clean/`;
 
 export const catalogCategories = [
   { value: "all", label: "Все категории" },
