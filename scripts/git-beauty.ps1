@@ -68,6 +68,7 @@ if ($diffExitCode -eq 0) {
   throw "git diff failed with exit code $diffExitCode"
 }
 
+Invoke-Step "Sync with GitHub" { git pull --rebase $remote $branch }
 Invoke-Step "Push to GitHub" { git push $remote $branch }
 
 Write-Host ""
