@@ -37,14 +37,22 @@ function Invoke-Step {
   }
 }
 
-$branch = (git branch --show-current).Trim()
-if (-not $branch) {
-  $branch = "main"
+$localBranch = (git branch --show-current).Trim()
+if (-not $localBranch) {
+  $localBranch = "main"
 }
 
 $remote = (git remote).Trim() -split "\s+" | Select-Object -First 1
 if (-not $remote) {
   throw "No git remote found. Add origin before using git beauty load."
+}
+
+$deployBranch = git config --get beauty.deployBranch
+if ($deployBranch) {
+  $deployBranch = $deployBranch.Trim()
+}
+if (-not $deployBranch) {
+  $deployBranch = "main"
 }
 
 Invoke-Step "Build site" { npm run build }
@@ -54,7 +62,7 @@ git diff --cached --quiet
 $diffExitCode = $LASTEXITCODE
 if ($diffExitCode -eq 0) {
   Write-Host ""
-  Write-Host "No local changes to commit. Pushing current $branch branch anyway."
+  Write-Host "No local changes to commit. Pushing current $localBranch branch anyway."
 } elseif ($diffExitCode -eq 1) {
   if ($messageParts.Count -gt 0) {
     $commitMessage = $messageParts -join " "
@@ -68,8 +76,19 @@ if ($diffExitCode -eq 0) {
   throw "git diff failed with exit code $diffExitCode"
 }
 
-Invoke-Step "Sync with GitHub" { git pull --rebase $remote $branch }
-Invoke-Step "Push to GitHub" { git push $remote $branch }
+$remoteBranch = git ls-remote --heads $remote $localBranch
+if ($remoteBranch) {
+  $remoteBranch = $remoteBranch.Trim()
+}
+if ($remoteBranch) {
+  Invoke-Step "Sync with GitHub" { git pull --rebase $remote $localBranch }
+  Invoke-Step "Push to GitHub" { git push $remote $localBranch }
+} else {
+  Write-Host ""
+  Write-Host "Remote branch $localBranch was not found. Deploying current project to $remote/$deployBranch."
+  Invoke-Step "Sync with GitHub" { git pull --rebase $remote $deployBranch }
+  Invoke-Step "Push to GitHub" { git push $remote "HEAD:$deployBranch" }
+}
 
 Write-Host ""
 Write-Host "Done. Vercel will deploy after GitHub receives the push."
