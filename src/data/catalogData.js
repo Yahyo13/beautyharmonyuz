@@ -11,7 +11,7 @@ export const catalogFallbackSource = {
 };
 
 const uzumShopUrl = "https://uzum.uz/uz/shop/beautyh";
-const imageBase = `${import.meta.env.BASE_URL}products/dr-sante/`;
+const imageBase = `${import.meta.env.BASE_URL}products/dr-sante-v2/`;
 
 export const catalogCategories = [
   { value: "all", label: "Все категории" },
@@ -593,7 +593,8 @@ function buildProduct(spec, index) {
     barcode,
     source: catalogFallbackSource.name,
     href: uzumOverride.href || uzumShopUrl,
-    image: uzumOverride.image || `${imageBase}${image}`,
+    image: `${imageBase}${image}`,
+    uzumImage: uzumOverride.image || "",
     price: null,
     uzumCardPrice: null,
   };
@@ -602,6 +603,9 @@ function buildProduct(spec, index) {
 export const localCatalogProducts = productSpecs.map(buildProduct);
 
 export const catalogProducts = localCatalogProducts;
+
+const localCatalogProductById = new Map(localCatalogProducts.map((product) => [product.id, product]));
+const localCatalogProductByBarcode = new Map(localCatalogProducts.filter((product) => product.barcode).map((product) => [product.barcode, product]));
 
 const categoryDescriptions = {
   ru: {
@@ -777,6 +781,7 @@ function inferProductVolume(title = "") {
 
 export function normalizeCatalogProduct(product, index = 0) {
   const title = product.title || product.nameRu || product.name || product.uzumTitle || "";
+  const localProduct = localCatalogProductById.get(product.id) || localCatalogProductByBarcode.get(product.barcode);
   const brand = product.brandSlug ? { name: product.brand || "Dr.Sante", slug: product.brandSlug } : inferProductBrand({ ...product, title });
   const inferredCategory = product.category ? null : inferProductCategory({ ...product, title });
   const category = product.category || inferredCategory.value;
@@ -796,7 +801,7 @@ export function normalizeCatalogProduct(product, index = 0) {
     purpose: product.purpose || product.purposeRu || inferProductPurpose(category),
     description: product.description || product.descriptionRu || "",
     href: product.href || product.url || product.link || uzumShopUrl,
-    image: normalizeImageUrl(product.image || product.imageUrl || product.photo),
+    image: localProduct?.image || normalizeImageUrl(product.image || product.imageUrl || product.photo),
     price: normalizePrice(product.price),
     uzumCardPrice: normalizePrice(product.uzumCardPrice || product.cardPrice),
   };
