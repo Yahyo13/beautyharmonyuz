@@ -47,15 +47,21 @@ import {
   uzumShopUrl,
 } from "./data/siteContent";
 import {
+  catalogApiUrl,
   catalogCategories,
+  catalogFallbackSource,
   catalogProducts,
+  extractApiProducts,
+  fallbackCatalogProducts,
   formatPrice,
   getCategoryLabel,
   getProductBrand,
   getProductDescription,
+  getProductPurpose,
   getProductTheme,
   getProductTitle,
-  inferProductPurpose,
+  getProductVolume,
+  normalizeCatalogProduct,
 } from "./data/catalogData";
 import { useHashRoute, useRevealAnimation } from "./hooks/usePageEffects";
 
@@ -460,10 +466,10 @@ function HomePage() {
 function CatalogPreview() {
   const { language, t } = useLocale();
   const previewProducts = [
-    "shampun-drsante-keratin-110842",
-    "dush-uchun-kremli-270716",
-    "yuz-uchun-krem-183310",
-    "depilatsiya-uchun-tana-183316",
+    "dr-sante-keratin-shampoo-250",
+    "dr-sante-burdock-oil-100",
+    "dr-sante-peptide-day-50",
+    "dr-sante-hand-coconut-75",
   ]
     .map((id) => catalogProducts.find((product) => product.id === id))
     .filter(Boolean);
@@ -485,7 +491,7 @@ function CatalogPreview() {
             <img src={product.image} alt={getProductTitle(product, language)} loading="lazy" />
             <span>{getProductBrand(product) ? getBrandCopy(getProductBrand(product), language).localName : product.brand}</span>
             <strong>{getProductTitle(product, language)}</strong>
-            <b>{formatPrice(product.price, language)}</b>
+            {product.price && <b>{formatPrice(product.price, language)}</b>}
           </a>
         ))}
       </div>
@@ -518,9 +524,73 @@ function BrandsSection() {
 // Поиск, фильтр по категориям, сортировка и список товаров.
 function CatalogPage() {
   const { language, t } = useLocale();
+  const [catalogProducts, setCatalogProducts] = useState(fallbackCatalogProducts);
+  const [catalogSource, setCatalogSource] = useState("fallback");
+  const [isLoadingCatalog, setIsLoadingCatalog] = useState(true);
   const [query, setQuery] = useState("");
+  const [brandFilter, setBrandFilter] = useState("all");
   const [category, setCategory] = useState("all");
   const [sort, setSort] = useState("default");
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadCatalogFromApi() {
+      try {
+        const response = await fetch(catalogApiUrl, { headers: { Accept: "application/json" } });
+        if (!response.ok) throw new Error(`Catalog API responded ${response.status}`);
+        const payload = await response.json();
+        const apiProducts = extractApiProducts(payload).map(normalizeCatalogProduct).filter((product) => product.nameRu || product.name);
+
+        if (!isMounted) return;
+
+        if (apiProducts.length > 0) {
+          setCatalogProducts(apiProducts);
+          setCatalogSource("api");
+        } else {
+          setCatalogProducts(fallbackCatalogProducts);
+          setCatalogSource("fallback");
+        }
+      } catch {
+        if (!isMounted) return;
+        setCatalogProducts(fallbackCatalogProducts);
+        setCatalogSource("fallback");
+      } finally {
+        if (isMounted) setIsLoadingCatalog(false);
+      }
+    }
+
+    loadCatalogFromApi();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const productCountByBrand = useMemo(() => {
+    return catalogProducts.reduce(
+      (accumulator, product) => {
+        const key = product.brandSlug || "unknown";
+        accumulator[key] = (accumulator[key] || 0) + 1;
+        accumulator.all += 1;
+        return accumulator;
+      },
+      { all: 0 }
+    );
+  }, [catalogProducts]);
+
+  const brandOptions = useMemo(() => {
+    const options = new Map();
+
+    catalogProducts.forEach((product) => {
+      const key = product.brandSlug || "unknown";
+      if (options.has(key)) return;
+      const brand = getProductBrand(product);
+      const label = brand ? getBrandCopy(brand, language).localName : product.brand || key;
+      options.set(key, label);
+    });
+
+    return [...options.entries()].map(([value, label]) => ({ value, label }));
+  }, [catalogProducts, language]);
 
   const productCountByCategory = useMemo(() => {
     return catalogProducts.reduce(
@@ -531,44 +601,65 @@ function CatalogPage() {
       },
       { all: 0 }
     );
-  }, []);
+  }, [catalogProducts]);
+
+  const minCatalogPrice = useMemo(() => {
+    const prices = catalogProducts.map((product) => product.price).filter(Boolean);
+    return prices.length > 0 ? Math.min(...prices) : null;
+  }, [catalogProducts]);
+
+  const activeCategoryCount = useMemo(() => {
+    return Object.keys(productCountByCategory).filter((key) => key !== "all" && productCountByCategory[key] > 0).length;
+  }, [productCountByCategory]);
 
   const filteredProducts = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
 
     const results = catalogProducts.filter((product) => {
+      const matchesBrand = brandFilter === "all" || product.brandSlug === brandFilter;
       const matchesCategory = category === "all" || product.category === category;
       const searchableText = [
         product.name,
         product.nameRu,
+        product.nameUz,
         product.uzumTitle,
         product.brand,
+        product.line,
+        product.lineUz,
+        product.barcode,
         product.categoryLabel,
         getCategoryLabel(product.category, language),
-        inferProductPurpose(product.category, language),
+        getProductPurpose(product, language),
         getProductDescription(product, language),
       ]
         .join(" ")
         .toLowerCase();
 
-      return matchesCategory && (!normalizedQuery || searchableText.includes(normalizedQuery));
+      return matchesBrand && matchesCategory && (!normalizedQuery || searchableText.includes(normalizedQuery));
     });
 
     return [...results].sort((left, right) => {
-      if (sort === "price-asc") return left.price - right.price;
-      if (sort === "price-desc") return right.price - left.price;
-      if (sort === "name") return left.name.localeCompare(right.name, language === "uz" ? "uz" : "ru");
+      if (sort === "price-asc") return (left.price || Number.MAX_SAFE_INTEGER) - (right.price || Number.MAX_SAFE_INTEGER);
+      if (sort === "price-desc") return (right.price || 0) - (left.price || 0);
+      if (sort === "name") return getProductTitle(left, language).localeCompare(getProductTitle(right, language), language === "uz" ? "uz" : "ru");
       return catalogProducts.findIndex((product) => product.id === left.id) - catalogProducts.findIndex((product) => product.id === right.id);
     });
-  }, [category, query, sort, language]);
+  }, [brandFilter, catalogProducts, category, query, sort, language]);
 
   const resetFilters = () => {
     setQuery("");
+    setBrandFilter("all");
     setCategory("all");
     setSort("default");
   };
 
-  const hasFilters = query || category !== "all" || sort !== "default";
+  const hasFilters = query || brandFilter !== "all" || category !== "all" || sort !== "default";
+  const sourceNote =
+    catalogSource === "api"
+      ? t.catalog.sourceNote
+      : language === "uz"
+        ? catalogFallbackSource.noteUz
+        : catalogFallbackSource.noteRu;
 
   return (
     <>
@@ -596,11 +687,11 @@ function CatalogPage() {
             <span>{t.catalog.products}</span>
           </div>
           <div>
-            <strong>{formatPrice(Math.min(...catalogProducts.map((product) => product.price)), language)}</strong>
+            <strong>{formatPrice(minCatalogPrice, language)}</strong>
             <span>{t.catalog.minPrice}</span>
           </div>
           <div>
-            <strong>{catalogCategories.length - 1}</strong>
+            <strong>{activeCategoryCount}</strong>
             <span>{t.catalog.categories}</span>
           </div>
         </div>
@@ -617,6 +708,20 @@ function CatalogPage() {
               aria-label={t.catalog.searchLabel}
             />
           </div>
+
+          <label className="catalog-select">
+            {t.common.brand}
+            <select value={brandFilter} onChange={(event) => setBrandFilter(event.target.value)}>
+              <option value="all">
+                {t.common.allBrands} ({productCountByBrand.all || 0})
+              </option>
+              {brandOptions.map((item) => (
+                <option value={item.value} key={item.value}>
+                  {item.label} ({productCountByBrand[item.value] || 0})
+                </option>
+              ))}
+            </select>
+          </label>
 
           <label className="catalog-select">
             {t.catalog.category}
@@ -648,11 +753,11 @@ function CatalogPage() {
         <div className="catalog-summary reveal">
           <div>
             <span>
-              {filteredProducts.length} {language === "uz" ? "/" : "из"} {catalogProducts.length}
+              {isLoadingCatalog ? (language === "uz" ? "API tekshirilmoqda" : "Проверяем API") : `${filteredProducts.length} ${language === "uz" ? "/" : "из"} ${catalogProducts.length}`}
             </span>
             <h2>{t.catalog.found}</h2>
           </div>
-          <p>{t.catalog.sourceNote}</p>
+          <p>{sourceNote}</p>
         </div>
 
         {filteredProducts.length > 0 ? (
@@ -683,17 +788,18 @@ function CatalogProductCard({ product }) {
   const { language, t } = useLocale();
   const brand = getProductBrand(product);
   const brandCopy = brand ? getBrandCopy(brand, language) : null;
+  const productHref = product.href || uzumShopUrl;
 
   return (
-    <article className={`product-card-site reveal ${getProductTheme(product)}`}>
-      <a className="product-card-site__image" href={product.href} target="_blank" rel="noreferrer">
+    <article className={`product-card-site reveal is-visible ${getProductTheme(product)}`}>
+      <a className="product-card-site__image" href={productHref} target="_blank" rel="noreferrer">
         <img src={product.image} alt={getProductTitle(product, language)} loading="lazy" />
       </a>
 
       <div className="product-card-site__body">
         <div className="product-card-site__top">
           <span>{getCategoryLabel(product.category, language)}</span>
-          <b>{product.volume}</b>
+          <b>{getProductVolume(product, language)}</b>
         </div>
         <h3>{getProductTitle(product, language)}</h3>
         <p>{getProductDescription(product, language)}</p>
@@ -705,22 +811,22 @@ function CatalogProductCard({ product }) {
           </div>
           <div>
             <dt>{t.common.purpose}</dt>
-            <dd>{inferProductPurpose(product.category, language)}</dd>
+            <dd>{getProductPurpose(product, language)}</dd>
           </div>
         </dl>
-
-        <small title={product.uzumTitle}>Uzum: {product.uzumTitle}</small>
       </div>
 
-      <div className="product-card-site__footer">
-        <div>
-          <span>{t.common.normalPrice}</span>
-          <strong>{formatPrice(product.price, language)}</strong>
-          {product.uzumCardPrice && product.uzumCardPrice < product.price && (
-            <em>Uzum karta: {formatPrice(product.uzumCardPrice, language)}</em>
-          )}
-        </div>
-        <AppButton href={product.href} icon={ShoppingBag}>
+      <div className={`product-card-site__footer ${product.price ? "" : "no-price"}`}>
+        {product.price && (
+          <div>
+            <span>{t.common.normalPrice}</span>
+            <strong>{formatPrice(product.price, language)}</strong>
+            {product.uzumCardPrice && product.uzumCardPrice < product.price && (
+              <em>Uzum karta: {formatPrice(product.uzumCardPrice, language)}</em>
+            )}
+          </div>
+        )}
+        <AppButton href={productHref} icon={ShoppingBag}>
           {t.common.buy}
         </AppButton>
       </div>
