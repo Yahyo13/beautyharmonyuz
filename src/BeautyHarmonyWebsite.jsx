@@ -522,6 +522,84 @@ function BrandsSection() {
 
 // === Каталог ===
 // Поиск, фильтр по категориям, сортировка и список товаров.
+function normalizeCatalogMergeText(value = "") {
+  return String(value).trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+function getCatalogImageFileName(value = "") {
+  const cleanValue = String(value).split("?")[0].split("#")[0];
+  return normalizeCatalogMergeText(cleanValue.split("/").pop() || cleanValue);
+}
+
+function getCatalogTitleKeys(product) {
+  return [product.nameRu, product.titleRu, product.name, product.title, product.uzumTitle]
+    .map(normalizeCatalogMergeText)
+    .filter(Boolean);
+}
+
+function addCatalogIndexEntry(map, key, index, product) {
+  if (!key) return;
+  if (!map.has(key)) map.set(key, []);
+  map.get(key).push({ index, product });
+}
+
+function takeUnusedCatalogMatch(map, keys, usedApiIndexes) {
+  for (const key of keys) {
+    const candidates = map.get(key) || [];
+    const match = candidates.find((candidate) => !usedApiIndexes.has(candidate.index));
+    if (match) return match;
+  }
+  return null;
+}
+
+function mergeCatalogProducts(apiProducts, localProducts) {
+  if (apiProducts.length === 0) return localProducts;
+
+  const byTitle = new Map();
+  const byImage = new Map();
+  const byBarcode = new Map();
+  const byId = new Map();
+
+  apiProducts.forEach((product, index) => {
+    getCatalogTitleKeys(product).forEach((key) => addCatalogIndexEntry(byTitle, key, index, product));
+    addCatalogIndexEntry(byImage, getCatalogImageFileName(product.image), index, product);
+    addCatalogIndexEntry(byBarcode, normalizeCatalogMergeText(product.barcode), index, product);
+    addCatalogIndexEntry(byId, normalizeCatalogMergeText(product.id), index, product);
+  });
+
+  const usedApiIndexes = new Set();
+  const localIds = new Set(localProducts.map((product) => normalizeCatalogMergeText(product.id)).filter(Boolean));
+  const localBarcodes = new Set(localProducts.map((product) => normalizeCatalogMergeText(product.barcode)).filter(Boolean));
+
+  const mergedLocalProducts = localProducts.map((localProduct) => {
+    const match =
+      takeUnusedCatalogMatch(byTitle, getCatalogTitleKeys(localProduct), usedApiIndexes) ||
+      takeUnusedCatalogMatch(byImage, [getCatalogImageFileName(localProduct.image)], usedApiIndexes) ||
+      takeUnusedCatalogMatch(byBarcode, [normalizeCatalogMergeText(localProduct.barcode)], usedApiIndexes) ||
+      takeUnusedCatalogMatch(byId, [normalizeCatalogMergeText(localProduct.id)], usedApiIndexes);
+
+    if (!match) return localProduct;
+
+    usedApiIndexes.add(match.index);
+    const apiProduct = match.product;
+    return {
+      ...localProduct,
+      href: apiProduct.href || localProduct.href,
+      price: apiProduct.price ?? localProduct.price,
+      uzumCardPrice: apiProduct.uzumCardPrice ?? localProduct.uzumCardPrice,
+    };
+  });
+
+  const extraApiProducts = apiProducts.filter((product, index) => {
+    if (usedApiIndexes.has(index)) return false;
+    const idKey = normalizeCatalogMergeText(product.id);
+    const barcodeKey = normalizeCatalogMergeText(product.barcode);
+    return !localIds.has(idKey) && !(barcodeKey && localBarcodes.has(barcodeKey));
+  });
+
+  return [...mergedLocalProducts, ...extraApiProducts];
+}
+
 function CatalogPage() {
   const { language, t } = useLocale();
   const [catalogProducts, setCatalogProducts] = useState(fallbackCatalogProducts);
@@ -545,7 +623,7 @@ function CatalogPage() {
         if (!isMounted) return;
 
         if (apiProducts.length > 0) {
-          setCatalogProducts(apiProducts);
+          setCatalogProducts(mergeCatalogProducts(apiProducts, fallbackCatalogProducts));
           setCatalogSource("api");
         } else {
           setCatalogProducts(fallbackCatalogProducts);
@@ -786,56 +864,104 @@ function CatalogPage() {
 // Одна карточка товара внутри каталога.
 function CatalogProductCard({ product }) {
   const { language, t } = useLocale();
+  const [isFlipped, setIsFlipped] = useState(false);
   const brand = getProductBrand(product);
   const brandCopy = brand ? getBrandCopy(brand, language) : null;
   const productHref = product.href || uzumShopUrl;
+  const productTitle = getProductTitle(product, language);
+  const productDescription = getProductDescription(product, language);
+  const productVolume = getProductVolume(product, language);
+  const productBrand = brandCopy?.localName || product.brand;
+  const flipHint = language === "uz" ? "Tavsifni ko'rish uchun bosing" : "Нажмите, чтобы увидеть описание";
+  const backHint = language === "uz" ? "Kartaga qaytish uchun bosing" : "Нажмите, чтобы вернуться к карточке";
+
+  function handleCardFlip(event) {
+    if (event.target.closest("a, button, input, select, textarea")) return;
+    setIsFlipped((current) => !current);
+  }
+
+  function handleCardKeyDown(event) {
+    if (event.key !== "Enter" && event.key !== " ") return;
+    if (event.target.closest("a, button, input, select, textarea")) return;
+    event.preventDefault();
+    setIsFlipped((current) => !current);
+  }
 
   return (
-    <article className={`product-card-site reveal is-visible ${getProductTheme(product)}`}>
-      <a className="product-card-site__image" href={productHref} target="_blank" rel="noreferrer">
-        <img src={product.image} alt={getProductTitle(product, language)} loading="lazy" />
-      </a>
-
-      <div className="product-card-site__body">
-        <div className="product-card-site__top">
-          <span>{getCategoryLabel(product.category, language)}</span>
-          <b>{getProductVolume(product, language)}</b>
-        </div>
-        <h3>{getProductTitle(product, language)}</h3>
-        <p>{getProductDescription(product, language)}</p>
-
-        <dl className="product-card-site__details">
-          <div>
-            <dt>{t.common.brand}</dt>
-            <dd>{brandCopy?.localName || product.brand}</dd>
+    <article
+      className={`product-card-site reveal is-visible ${isFlipped ? "is-flipped" : ""} ${getProductTheme(product)}`}
+      onClick={handleCardFlip}
+      onKeyDown={handleCardKeyDown}
+      tabIndex={0}
+      aria-label={isFlipped ? backHint : flipHint}
+    >
+      <div className="product-card-site__inner">
+        <div className="product-card-site__face product-card-site__face--front">
+          <div className="product-card-site__image">
+            <img src={product.image} alt={productTitle} loading="lazy" />
           </div>
-          <div>
-            <dt>{t.common.purpose}</dt>
-            <dd>{getProductPurpose(product, language)}</dd>
-          </div>
-        </dl>
-      </div>
 
-      <div className={`product-card-site__footer ${product.price ? "" : "no-price"}`}>
-        {product.price && (
-          <div>
-            <span>{t.common.normalPrice}</span>
-            <strong>{formatPrice(product.price, language)}</strong>
-            {product.uzumCardPrice && product.uzumCardPrice < product.price && (
-              <em>Uzum karta: {formatPrice(product.uzumCardPrice, language)}</em>
+          <div className="product-card-site__body">
+            <div className="product-card-site__top">
+              <span>{getCategoryLabel(product.category, language)}</span>
+              <b>{productVolume}</b>
+            </div>
+            <h3>{productTitle}</h3>
+            <div className="product-card-site__front-meta">
+              <span>{productBrand}</span>
+              <small>{flipHint}</small>
+            </div>
+          </div>
+
+          <div className={`product-card-site__footer ${product.price ? "" : "no-price"}`}>
+            {product.price && (
+              <div>
+                <span>{t.common.normalPrice}</span>
+                <strong>{formatPrice(product.price, language)}</strong>
+                {product.uzumCardPrice && product.uzumCardPrice < product.price && (
+                  <em>Uzum karta: {formatPrice(product.uzumCardPrice, language)}</em>
+                )}
+              </div>
             )}
+            <AppButton href={productHref} icon={ShoppingBag}>
+              {t.common.buy}
+            </AppButton>
           </div>
-        )}
-        <AppButton href={productHref} icon={ShoppingBag}>
-          {t.common.buy}
-        </AppButton>
-      </div>
+        </div>
 
-      {brand && (
-        <a className="product-card-site__brand-link" href={`#/brand/${brand.slug}`}>
-          {t.common.aboutBrand} <ArrowUpRight size={15} aria-hidden="true" />
-        </a>
-      )}
+        <div className="product-card-site__face product-card-site__face--back">
+          <div className="product-card-site__body product-card-site__body--back">
+            <div className="product-card-site__top">
+              <span>{productBrand}</span>
+              <b>{productVolume}</b>
+            </div>
+            <h3>{productTitle}</h3>
+            <p className="product-card-site__description">{productDescription}</p>
+
+            <dl className="product-card-site__details">
+              <div>
+                <dt>{t.common.brand}</dt>
+                <dd>{productBrand}</dd>
+              </div>
+              <div>
+                <dt>{t.common.purpose}</dt>
+                <dd>{getProductPurpose(product, language)}</dd>
+              </div>
+            </dl>
+          </div>
+
+          <div className={`product-card-site__footer ${product.price ? "" : "no-price"}`}>
+            {brand && (
+              <a className="product-card-site__brand-link" href={`#/brand/${brand.slug}`}>
+                {t.common.aboutBrand} <ArrowUpRight size={15} aria-hidden="true" />
+              </a>
+            )}
+            <AppButton href={productHref} icon={ShoppingBag}>
+              {t.common.buy}
+            </AppButton>
+          </div>
+        </div>
+      </div>
     </article>
   );
 }
