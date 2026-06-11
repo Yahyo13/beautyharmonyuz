@@ -752,10 +752,10 @@ const productSpecs = [
   ["keratin-spray-150", "Keratin", "spray", "термозащита и блеск", "termo himoya va jilo", "150 мл", "4823015935473", "p05_08_4706_327x1440.jpg"],
   ["keratin-serum-50", "Keratin", "fluid", "блеск и восстановление", "jilo va tiklash", "50 мл", "4823015935480", "p05_10_4707_469x1440.jpg"],
 
-  ["burdock-oil-100", "Репейная серия", "oil", "стимулирует рост волос", "soch o'sishini rag'batlantiradi", "100 мл", "4823015933004", "generated-burdock-oil-100.jpg"],
+  ["burdock-oil-100", "Репейная серия", "oil", "стимулирует рост волос", "soch o'sishini rag'batlantiradi", "100 мл", "4823015933004", "burdock_oil_100ml.jpg"],
   ["burdock-balm-concentrate-200", "Репейная серия", "balm", "укрепление волос", "sochni mustahkamlash", "200 мл", "4823015933035", "p06_02_3462_920x2008.jpg"],
   ["burdock-mask-300", "Репейная серия", "mask", "против выпадения волос", "soch to'kilishiga qarshi", "300 мл", "4823015933011", "p06_03_3463_1813x1970.jpg"],
-  ["burdock-serum-150", "Репейная серия", "serum", "активный уход за корнями", "ildizlar uchun faol parvarish", "150 мл", "4823015933028", "generated-burdock-serum-150.jpg"],
+  ["burdock-serum-150", "Репейная серия", "serum", "активный уход за корнями", "ildizlar uchun faol parvarish", "150 мл", "4823015933028", "burdock_serum_150ml.jpg"],
   ["burdock-shampoo-1000", "Репейная серия", "shampoo", "укрепляющее очищение", "mustahkamlovchi tozalash", "1000 мл", "4823015932984", "generated-burdock-shampoo-1000.jpg"],
 
   ["hyaluron-mask-300", "Hyaluron Hair", "mask", "глубокое увлажнение", "chuqur namlantirish", "300 мл", "5901845506243", "p07_02_4262_3000x3256.jpg"],
