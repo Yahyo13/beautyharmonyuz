@@ -721,8 +721,8 @@ const productSpecs = [
   ["aloe-spray-combing-150", "Aloe Vera", "spray", "легкое расчесывание", "oson tarash", "150 мл", "4823015914102", "p01_03_2533_331x1440.jpg"],
   ["aloe-shampoo-250", "Aloe Vera", "shampoo", "очищение и восстановление", "tozalash va tiklash", "250 мл", "4823015937033", "p01_04_2534_381x1440.jpg"],
   ["aloe-liquid-silk-30", "Aloe Vera", "liquidSilk", "блеск и шелковистость", "jilo va ipakdek silliqlik", "30 мл", "4823015935343", "p01_05_2535_757x1500.jpg"],
-  ["aloe-mask-300", "Aloe Vera", "mask", "увлажнение и восстановление", "namlantirish va tiklash", "300 мл", "4823015937040", "p01_06_2536_924x1440.jpg"],
-  ["aloe-mask-1000", "Aloe Vera", "mask", "профессиональный формат", "professional format", "1000 мл", "4823015935350", "p01_07_2537_892x957.jpg"],
+  ["aloe-mask-300", "Aloe Vera", "mask", "увлажнение и восстановление", "namlantirish va tiklash", "300 мл", "4823015937040", "p01_07_2537_892x957.jpg"],
+  ["aloe-mask-1000", "Aloe Vera", "mask", "профессиональный формат", "professional format", "1000 мл", "4823015935350", "p01_06_2536_924x1440.jpg"],
   ["aloe-shampoo-1000", "Aloe Vera", "shampoo", "салонный объем", "salon hajmi", "1000 мл", "4823015923135", "p01_08_2538_667x1556.jpg"],
 
   ["anti-hair-loss-oil-100", "Anti Hair Loss", "oil", "стимулирует рост волос", "soch o'sishini rag'batlantiradi", "100 мл", "4823015936647", "p02_01_4683_2048x2048.jpg"],
