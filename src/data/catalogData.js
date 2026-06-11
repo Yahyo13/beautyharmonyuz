@@ -1,4 +1,4 @@
-import { brands } from "./siteContent";
+import { brands } from "./siteContent.js";
 
 export const catalogApiUrl = "https://696f7b76a06046ce6186da88.mockapi.io/Api";
 
@@ -11,7 +11,8 @@ export const catalogFallbackSource = {
 };
 
 const uzumShopUrl = "https://uzum.uz/uz/shop/beautyh";
-const imageBase = `${import.meta.env.BASE_URL}products/dr-sante-clean/`;
+const baseUrl = import.meta.env?.BASE_URL || "./";
+const imageBase = `${baseUrl}products/dr-sante-clean/`;
 
 export const catalogCategories = [
   { value: "all", label: "Все категории" },
@@ -1125,9 +1126,9 @@ function normalizePrice(value) {
 }
 
 function normalizeImageUrl(image) {
-  if (!image) return `${import.meta.env.BASE_URL}beauty-harmony-hero.png`;
+  if (!image) return `${baseUrl}beauty-harmony-hero.png`;
   if (/^(https?:|data:|\/|\.\/)/i.test(image)) return image;
-  return `${import.meta.env.BASE_URL}${String(image).replace(/^\/+/, "")}`;
+  return `${baseUrl}${String(image).replace(/^\/+/, "")}`;
 }
 
 function inferProductBrand(product) {

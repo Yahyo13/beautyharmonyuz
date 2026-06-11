@@ -10,10 +10,12 @@
     "preview": "vite preview --host 0.0.0.0",
     "serve": "node scripts/serve-production-build.mjs",
     "catalog:update": "powershell -ExecutionPolicy Bypass -File scripts/update-uzum-catalog.ps1",
+    "firebase:upload-dr-sante": "node scripts/upload-dr-sante-to-firestore.mjs",
     "admin:hash": "node scripts/create-admin-hash.mjs"
   },
   "dependencies": {
     "@vitejs/plugin-react": "^4.3.4",
+    "firebase": "^12.14.0",
     "lucide-react": "^0.468.0",
     "vite": "^6.0.7",
     "react": "^18.3.1",

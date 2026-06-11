@@ -63,6 +63,7 @@ import {
   getProductVolume,
   normalizeCatalogProduct,
 } from "./data/catalogData";
+import { fetchFirebaseCatalogProducts } from "./data/firebaseCatalogApi";
 import { useHashRoute, useRevealAnimation } from "./hooks/usePageEffects";
 
 /*
@@ -600,6 +601,13 @@ function mergeCatalogProducts(apiProducts, localProducts) {
   return [...mergedLocalProducts, ...extraApiProducts];
 }
 
+async function loadCatalogFromMockApi() {
+  const response = await fetch(catalogApiUrl, { headers: { Accept: "application/json" } });
+  if (!response.ok) throw new Error(`Catalog API responded ${response.status}`);
+  const payload = await response.json();
+  return extractApiProducts(payload).map(normalizeCatalogProduct).filter((product) => product.nameRu || product.name);
+}
+
 function CatalogPage() {
   const { language, t } = useLocale();
   const [catalogProducts, setCatalogProducts] = useState(fallbackCatalogProducts);
@@ -613,32 +621,49 @@ function CatalogPage() {
   useEffect(() => {
     let isMounted = true;
 
-    async function loadCatalogFromApi() {
+    async function loadCatalog() {
       try {
-        const response = await fetch(catalogApiUrl, { headers: { Accept: "application/json" } });
-        if (!response.ok) throw new Error(`Catalog API responded ${response.status}`);
-        const payload = await response.json();
-        const apiProducts = extractApiProducts(payload).map(normalizeCatalogProduct).filter((product) => product.nameRu || product.name);
+        const firebaseProducts = await fetchFirebaseCatalogProducts();
+        const normalizedFirebaseProducts = firebaseProducts
+          .map(normalizeCatalogProduct)
+          .filter((product) => product.nameRu || product.name);
+
+        if (!isMounted) return;
+
+        if (normalizedFirebaseProducts.length > 0) {
+          setCatalogProducts(mergeCatalogProducts(normalizedFirebaseProducts, fallbackCatalogProducts));
+          setCatalogSource("firebase");
+          return;
+        }
+      } catch {
+        // Firebase is optional while the catalog is being migrated.
+      }
+
+      try {
+        const apiProducts = await loadCatalogFromMockApi();
 
         if (!isMounted) return;
 
         if (apiProducts.length > 0) {
           setCatalogProducts(mergeCatalogProducts(apiProducts, fallbackCatalogProducts));
           setCatalogSource("api");
-        } else {
-          setCatalogProducts(fallbackCatalogProducts);
-          setCatalogSource("fallback");
+          return;
         }
       } catch {
-        if (!isMounted) return;
+        // MockAPI is a fallback source, so the local catalog keeps the site usable.
+      }
+
+      if (isMounted) {
         setCatalogProducts(fallbackCatalogProducts);
         setCatalogSource("fallback");
-      } finally {
-        if (isMounted) setIsLoadingCatalog(false);
       }
+
+      if (isMounted) setIsLoadingCatalog(false);
     }
 
-    loadCatalogFromApi();
+    loadCatalog().finally(() => {
+      if (isMounted) setIsLoadingCatalog(false);
+    });
     return () => {
       isMounted = false;
     };
@@ -733,7 +758,11 @@ function CatalogPage() {
 
   const hasFilters = query || brandFilter !== "all" || category !== "all" || sort !== "default";
   const sourceNote =
-    catalogSource === "api"
+    catalogSource === "firebase"
+      ? language === "uz"
+        ? "Katalog Firebase Firestore bazasidan yuklandi."
+        : "Каталог загружен из Firebase Firestore."
+      : catalogSource === "api"
       ? t.catalog.sourceNote
       : language === "uz"
         ? catalogFallbackSource.noteUz
