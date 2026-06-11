@@ -635,8 +635,8 @@ function CatalogPage() {
           setCatalogSource("firebase");
           return;
         }
-      } catch {
-        // Firebase is optional while the catalog is being migrated.
+      } catch (firebaseError) {
+        console.warn("[Catalog] Firebase failed:", firebaseError?.code, firebaseError?.message);
       }
 
       try {
@@ -649,8 +649,8 @@ function CatalogPage() {
           setCatalogSource("api");
           return;
         }
-      } catch {
-        // MockAPI is a fallback source, so the local catalog keeps the site usable.
+      } catch (apiError) {
+        console.warn("[Catalog] MockAPI failed:", apiError?.message);
       }
 
       if (isMounted) {
