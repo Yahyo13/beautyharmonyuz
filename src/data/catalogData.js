@@ -1128,7 +1128,8 @@ function normalizePrice(value) {
 function normalizeImageUrl(image) {
   if (!image) return `${baseUrl}beauty-harmony-hero.png`;
   if (/^(https?:|data:|\/|\.\/)/i.test(image)) return image;
-  return `${baseUrl}${String(image).replace(/^\/+/, "")}`;
+  if (image.startsWith("products/")) return `${baseUrl}${image}`;
+  return `${imageBase}${String(image).replace(/^\/+/, "")}`;
 }
 
 function inferProductBrand(product) {
@@ -1187,7 +1188,7 @@ export function normalizeCatalogProduct(product, index = 0) {
     descriptionRu: localProduct?.descriptionRu || product.descriptionRu || product.description || "",
     descriptionUz: localProduct?.descriptionUz || product.descriptionUz || "",
     href: product.href || product.url || product.link || uzumShopUrl,
-    image: localProduct?.image || normalizeImageUrl(product.image || product.imageUrl || product.photo),
+    image: normalizeImageUrl(product.image || product.imageUrl || product.photo || localProduct?.image),
     price: normalizePrice(product.price),
     uzumCardPrice: normalizePrice(product.uzumCardPrice || product.cardPrice),
   };

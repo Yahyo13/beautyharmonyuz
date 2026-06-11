@@ -585,9 +585,11 @@ function mergeCatalogProducts(apiProducts, localProducts) {
     const apiProduct = match.product;
     return {
       ...localProduct,
+      ...apiProduct,
       href: apiProduct.href || localProduct.href,
       price: apiProduct.price ?? localProduct.price,
       uzumCardPrice: apiProduct.uzumCardPrice ?? localProduct.uzumCardPrice,
+      image: apiProduct.image || localProduct.image,
     };
   });
 
