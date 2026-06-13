@@ -6,3 +6,4 @@ dist/
 *.err
 .chrome-*/
 page.png
+tmp/

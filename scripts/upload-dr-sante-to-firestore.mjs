@@ -63,7 +63,7 @@ async function main() {
   });
 
   await batch.commit();
-  console.log(`Uploaded ${localCatalogProducts.length} Dr.Sante products to Firestore products collection.`);
+  console.log(`Uploaded ${localCatalogProducts.length} catalog products to Firestore products collection.`);
 }
 
 main().catch((error) => {

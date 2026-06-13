@@ -1,13 +1,14 @@
 import { brands } from "./siteContent.js";
+import { freshJuiceCatalogProducts } from "./freshJuiceCatalog.generated.js";
 
 export const catalogApiUrl = "https://696f7b76a06046ce6186da88.mockapi.io/Api";
 
 export const catalogFallbackSource = {
-  name: "Dr.Sante catalog",
+  name: "Beauty Harmony catalog",
   noteRu:
-    "Карточки Dr.Sante собраны из брендового каталога. API подключен как основной источник: когда в MockAPI появятся товары, сайт загрузит их автоматически.",
+    "Локальный каталог собран из брендовых PDF-каталогов Dr.Sante и Fresh Juice. Если Firebase или MockAPI временно недоступны, сайт покажет эти карточки автоматически.",
   noteUz:
-    "Dr.Sante kartochkalari brend katalogidan yig'ildi. API asosiy manba sifatida ulangan: MockAPI ichida tovarlar paydo bo'lsa, sayt ularni avtomatik yuklaydi.",
+    "Mahalliy katalog Dr.Sante va Fresh Juice brend PDF-kataloglari asosida yig'ildi. Firebase yoki MockAPI vaqtincha ishlamasa, sayt shu kartochkalarni avtomatik ko'rsatadi.",
 };
 
 const uzumShopUrl = "https://uzum.uz/uz/shop/beautyh";
@@ -982,7 +983,7 @@ function buildProduct(spec, index) {
   };
 }
 
-export const localCatalogProducts = productSpecs.map(buildProduct);
+export const localCatalogProducts = [...productSpecs.map(buildProduct), ...freshJuiceCatalogProducts];
 
 export const catalogProducts = localCatalogProducts;
 

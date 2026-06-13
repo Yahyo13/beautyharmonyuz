@@ -10,6 +10,7 @@
     "preview": "vite preview --host 0.0.0.0",
     "serve": "node scripts/serve-production-build.mjs",
     "catalog:update": "powershell -ExecutionPolicy Bypass -File scripts/update-uzum-catalog.ps1",
+    "firebase:upload-catalog": "node scripts/upload-dr-sante-to-firestore.mjs",
     "firebase:upload-dr-sante": "node scripts/upload-dr-sante-to-firestore.mjs",
     "admin:hash": "node scripts/create-admin-hash.mjs"
   },

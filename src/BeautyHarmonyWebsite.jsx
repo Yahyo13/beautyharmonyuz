@@ -84,7 +84,7 @@ import { useHashRoute, useRevealAnimation } from "./hooks/usePageEffects";
 
 // Общие настройки и env-переменные.
 const heroImageUrl = `${import.meta.env.BASE_URL}beauty-harmony-hero.png`;
-const logoUrl = `${import.meta.env.BASE_URL}BH_Logo.png`;
+const logoUrl = `${import.meta.env.BASE_URL}beauty-harmony-logo.png`;
 const instagramUrl = "https://www.instagram.com/dr.sante_uz/";
 const telegramBotUrl = "https://t.me/beautyharmonyuz_bot";
 const turnstileSiteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY || "";
@@ -216,8 +216,7 @@ function Shell({ route, children }) {
     <main>
       <nav className="topbar">
         <a className="brand-mark" href="#/" aria-label="Beauty Harmony" onClick={scrollToHomeTop}>
-          <span><img src={logoUrl} alt="" /></span>
-          <strong>Beauty Harmony</strong>
+          <img className="brand-mark__logo" src={logoUrl} alt="Beauty Harmony" />
         </a>
 
         <div className={`nav-links${isMenuOpen ? " is-open" : ""}`} id="site-nav">

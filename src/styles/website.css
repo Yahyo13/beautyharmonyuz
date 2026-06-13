@@ -40,23 +40,17 @@
 
 .brand-mark {
   gap: 10px;
+  min-width: 0;
   white-space: nowrap;
 }
 
-.brand-mark span {
-  display: grid;
-  place-items: center;
-  width: 38px;
-  height: 38px;
-  border-radius: 50%;
-  color: #ffffff;
-  background: linear-gradient(135deg, #ff5d75, #7438ff);
-  font-weight: 900;
-  box-shadow: inset 0 -8px 18px rgba(0, 0, 0, 0.16);
-}
-
-.brand-mark strong {
-  font-size: 0.98rem;
+.brand-mark__logo {
+  display: block;
+  width: clamp(150px, 15vw, 214px);
+  max-width: 100%;
+  height: auto;
+  max-height: 46px;
+  object-fit: contain;
 }
 
 .nav-links {
@@ -2910,8 +2904,9 @@ footer p {
     padding: 8px;
   }
 
-  .brand-mark strong {
-    display: none;
+  .brand-mark__logo {
+    width: 126px;
+    max-height: 38px;
   }
 
   .topbar .app-button {
