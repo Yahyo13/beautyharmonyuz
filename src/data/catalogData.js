@@ -1,14 +1,16 @@
 import { brands } from "./siteContent.js";
+import { coolMenCatalogProducts } from "./coolMenCatalog.generated.js";
 import { freshJuiceCatalogProducts } from "./freshJuiceCatalog.generated.js";
+import { pinkElephantCatalogProducts } from "./pinkElephantCatalog.generated.js";
 
 export const catalogApiUrl = "https://696f7b76a06046ce6186da88.mockapi.io/Api";
 
 export const catalogFallbackSource = {
   name: "Beauty Harmony catalog",
   noteRu:
-    "Локальный каталог собран из брендовых PDF-каталогов Dr.Sante и Fresh Juice. Если Firebase или MockAPI временно недоступны, сайт покажет эти карточки автоматически.",
+    "Локальный каталог собран из брендовых PDF-каталогов Dr.Sante, Fresh Juice, Cool Men и Pink Elephant. Если Firebase или MockAPI временно недоступны, сайт покажет эти карточки автоматически.",
   noteUz:
-    "Mahalliy katalog Dr.Sante va Fresh Juice brend PDF-kataloglari asosida yig'ildi. Firebase yoki MockAPI vaqtincha ishlamasa, sayt shu kartochkalarni avtomatik ko'rsatadi.",
+    "Mahalliy katalog Dr.Sante, Fresh Juice, Cool Men va Pink Elephant brend PDF-kataloglari asosida yig'ildi. Firebase yoki MockAPI vaqtincha ishlamasa, sayt shu kartochkalarni avtomatik ko'rsatadi.",
 };
 
 const uzumShopUrl = "https://uzum.uz/uz/shop/beautyh";
@@ -983,7 +985,12 @@ function buildProduct(spec, index) {
   };
 }
 
-export const localCatalogProducts = [...productSpecs.map(buildProduct), ...freshJuiceCatalogProducts];
+export const localCatalogProducts = [
+  ...productSpecs.map(buildProduct),
+  ...freshJuiceCatalogProducts,
+  ...coolMenCatalogProducts,
+  ...pinkElephantCatalogProducts,
+];
 
 export const catalogProducts = localCatalogProducts;
 

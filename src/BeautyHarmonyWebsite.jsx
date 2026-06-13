@@ -373,7 +373,7 @@ function HomePage() {
           </div>
           <div className="hero-stats">
             <div>
-              <strong>6</strong>
+              <strong>{brands.length}</strong>
               <span>{t.home.statBrands}</span>
             </div>
             <div>

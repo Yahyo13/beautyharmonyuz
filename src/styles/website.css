@@ -406,18 +406,47 @@ footer,
 }
 
 .brand-card {
+  position: relative;
+  isolation: isolate;
   display: grid;
   gap: 20px;
   min-height: 430px;
   padding: 24px;
   border: 1px solid rgba(23, 32, 42, 0.12);
   border-radius: 8px;
+  overflow: hidden;
   background:
     linear-gradient(135deg, rgba(255, 255, 255, 0.96), rgba(255, 255, 255, 0.78)),
     radial-gradient(circle at 92% 8%, var(--brand-soft), transparent 35%),
     var(--brand-pale);
   box-shadow: 0 22px 70px rgba(42, 35, 28, 0.12);
   transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease;
+}
+
+.brand-card::before,
+.brand-card::after {
+  position: absolute;
+  z-index: 0;
+  content: "";
+  pointer-events: none;
+}
+
+.brand-card::before {
+  inset: 0;
+  opacity: 0.86;
+}
+
+.brand-card::after {
+  right: 18px;
+  bottom: 18px;
+  width: 128px;
+  height: 128px;
+  opacity: 0.58;
+}
+
+.brand-card > * {
+  position: relative;
+  z-index: 1;
 }
 
 .brand-card:hover {
@@ -485,6 +514,181 @@ footer,
   margin-top: auto;
   color: var(--brand);
   font-weight: 1000;
+}
+
+.brand-card.theme-sante {
+  background:
+    linear-gradient(135deg, rgba(255, 252, 253, 0.98), rgba(238, 253, 245, 0.92)),
+    #ffffff;
+}
+
+.brand-card.theme-sante::before {
+  background:
+    linear-gradient(118deg, transparent 0 58%, rgba(25, 156, 127, 0.12) 58% 66%, transparent 66% 100%),
+    repeating-linear-gradient(28deg, rgba(232, 63, 103, 0.08) 0 2px, transparent 2px 22px),
+    repeating-linear-gradient(118deg, rgba(25, 156, 127, 0.07) 0 1px, transparent 1px 26px);
+}
+
+.brand-card.theme-sante::after {
+  border-radius: 58% 42% 48% 52% / 34% 56% 44% 66%;
+  background: linear-gradient(135deg, rgba(72, 179, 129, 0.28), rgba(232, 63, 103, 0.16));
+  clip-path: polygon(50% 0, 62% 28%, 92% 18%, 72% 48%, 88% 82%, 54% 66%, 28% 100%, 34% 60%, 0 50%, 34% 38%);
+}
+
+.brand-card.theme-juice {
+  background:
+    linear-gradient(135deg, #fff6ce 0%, #ffffff 46%, #fff0f7 100%);
+}
+
+.brand-card.theme-juice::before {
+  background:
+    linear-gradient(118deg, rgba(255, 122, 26, 0.18) 0 18%, transparent 18% 100%),
+    linear-gradient(52deg, transparent 0 63%, rgba(255, 63, 143, 0.14) 63% 100%),
+    repeating-linear-gradient(90deg, rgba(255, 195, 52, 0.18) 0 12px, transparent 12px 28px);
+}
+
+.brand-card.theme-juice::after {
+  border-radius: 18px 68px 22px 74px;
+  background:
+    linear-gradient(135deg, rgba(255, 221, 61, 0.68), rgba(255, 122, 26, 0.42) 54%, rgba(255, 63, 143, 0.36));
+  clip-path: polygon(16% 18%, 82% 4%, 98% 42%, 58% 46%, 82% 94%, 20% 78%, 4% 44%);
+  transform: rotate(-8deg);
+}
+
+.brand-card.theme-doctor {
+  background:
+    linear-gradient(135deg, #f7fffc 0%, #ffffff 48%, #edf6ff 100%);
+}
+
+.brand-card.theme-doctor::before {
+  background:
+    linear-gradient(90deg, transparent 0 47%, rgba(17, 159, 145, 0.15) 47% 53%, transparent 53% 100%),
+    linear-gradient(0deg, transparent 0 47%, rgba(84, 120, 255, 0.12) 47% 53%, transparent 53% 100%),
+    repeating-linear-gradient(135deg, rgba(11, 61, 85, 0.045) 0 1px, transparent 1px 32px);
+}
+
+.brand-card.theme-doctor::after {
+  border-radius: 8px;
+  background: linear-gradient(135deg, rgba(17, 159, 145, 0.2), rgba(84, 120, 255, 0.18));
+  clip-path: polygon(38% 4%, 62% 4%, 62% 36%, 94% 36%, 94% 62%, 62% 62%, 62% 96%, 38% 96%, 38% 62%, 6% 62%, 6% 36%, 38% 36%);
+}
+
+.brand-card.theme-green {
+  background:
+    linear-gradient(135deg, #f2ffe8 0%, #ffffff 46%, #ecfff5 100%);
+}
+
+.brand-card.theme-green::before {
+  background:
+    repeating-linear-gradient(32deg, rgba(53, 184, 107, 0.12) 0 2px, transparent 2px 24px),
+    linear-gradient(118deg, rgba(166, 217, 74, 0.18) 0 20%, transparent 20% 100%),
+    linear-gradient(58deg, transparent 0 66%, rgba(53, 184, 107, 0.16) 66% 100%);
+}
+
+.brand-card.theme-green::after {
+  border-radius: 72% 28% 70% 30% / 58% 20% 80% 42%;
+  background: linear-gradient(135deg, rgba(53, 184, 107, 0.34), rgba(166, 217, 74, 0.26));
+  clip-path: polygon(50% 0, 78% 22%, 86% 58%, 50% 100%, 14% 58%, 22% 22%);
+  transform: rotate(-28deg);
+}
+
+.brand-card.theme-caramel {
+  background:
+    linear-gradient(135deg, #fff1f5 0%, #fff8ed 48%, #ffffff 100%);
+}
+
+.brand-card.theme-caramel::before {
+  background:
+    repeating-linear-gradient(118deg, rgba(192, 23, 84, 0.1) 0 4px, transparent 4px 24px),
+    linear-gradient(132deg, rgba(255, 157, 77, 0.18) 0 21%, transparent 21% 100%),
+    linear-gradient(48deg, transparent 0 68%, rgba(192, 23, 84, 0.14) 68% 100%);
+}
+
+.brand-card.theme-caramel::after {
+  border-radius: 38px 10px 48px 12px;
+  background: linear-gradient(135deg, rgba(192, 23, 84, 0.34), rgba(255, 157, 77, 0.28));
+  clip-path: polygon(50% 6%, 66% 24%, 92% 20%, 78% 46%, 92% 70%, 64% 68%, 50% 94%, 36% 68%, 8% 70%, 22% 46%, 8% 20%, 34% 24%);
+}
+
+.brand-card.theme-cool {
+  color: #ffffff;
+  border-color: rgba(135, 231, 255, 0.26);
+  background:
+    linear-gradient(135deg, #121821 0%, #1e2834 48%, #0f151c 100%);
+  box-shadow: 0 24px 70px rgba(14, 19, 28, 0.28);
+}
+
+.brand-card.theme-cool::before {
+  background:
+    linear-gradient(118deg, rgba(55, 211, 122, 0.16) 0 16%, transparent 16% 100%),
+    linear-gradient(52deg, transparent 0 66%, rgba(155, 231, 255, 0.14) 66% 100%),
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.045) 0 1px, transparent 1px 18px);
+}
+
+.brand-card.theme-cool::after {
+  border: 1px solid rgba(155, 231, 255, 0.18);
+  border-radius: 8px;
+  background:
+    linear-gradient(135deg, rgba(55, 211, 122, 0.3), rgba(255, 59, 47, 0.24));
+  clip-path: polygon(8% 16%, 88% 4%, 96% 34%, 58% 44%, 88% 96%, 18% 82%, 4% 52%);
+}
+
+.brand-card.theme-cool .brand-card__topline,
+.brand-card.theme-cool p,
+.brand-card.theme-cool .brand-intro {
+  color: rgba(255, 255, 255, 0.78);
+}
+
+.brand-card.theme-cool h3,
+.brand-card.theme-cool .card-arrow {
+  color: #ffffff;
+}
+
+.brand-card.theme-cool .brand-card__topline strong,
+.brand-card.theme-cool .metric-row strong {
+  color: #37d37a;
+}
+
+.brand-card.theme-cool .brand-meta span,
+.brand-card.theme-cool .metric-row span {
+  color: #eaf7ff;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.brand-card.theme-pink {
+  background:
+    linear-gradient(135deg, #fff3f8 0%, #eefaff 46%, #f5fff8 100%);
+}
+
+.brand-card.theme-pink::before {
+  background:
+    repeating-linear-gradient(0deg, rgba(120, 216, 255, 0.12) 0 1px, transparent 1px 34px),
+    repeating-linear-gradient(90deg, rgba(255, 122, 168, 0.12) 0 1px, transparent 1px 34px),
+    linear-gradient(132deg, rgba(255, 122, 168, 0.18) 0 17%, transparent 17% 100%);
+}
+
+.brand-card.theme-pink::after {
+  border-radius: 64% 36% 58% 42% / 46% 38% 62% 54%;
+  background: linear-gradient(135deg, rgba(255, 122, 168, 0.34), rgba(120, 216, 255, 0.26), rgba(123, 220, 152, 0.22));
+  clip-path: polygon(50% 4%, 62% 30%, 92% 20%, 72% 50%, 88% 86%, 52% 70%, 24% 96%, 32% 60%, 4% 48%, 34% 38%);
+}
+
+.brand-card.theme-dez {
+  background:
+    linear-gradient(135deg, #f4f0ff 0%, #ffffff 48%, #edfaff 100%);
+}
+
+.brand-card.theme-dez::before {
+  background:
+    repeating-linear-gradient(90deg, rgba(116, 56, 255, 0.12) 0 1px, transparent 1px 36px),
+    repeating-linear-gradient(0deg, rgba(32, 200, 255, 0.1) 0 1px, transparent 1px 36px),
+    linear-gradient(118deg, rgba(32, 200, 255, 0.12) 0 18%, transparent 18% 100%);
+}
+
+.brand-card.theme-dez::after {
+  border-radius: 8px;
+  background: linear-gradient(135deg, rgba(116, 56, 255, 0.26), rgba(32, 200, 255, 0.22));
+  clip-path: polygon(10% 20%, 86% 6%, 96% 38%, 56% 46%, 86% 92%, 18% 80%, 4% 52%, 42% 44%);
 }
 
 .mock-scene {
@@ -783,6 +987,65 @@ footer,
 .mock-scene.theme-doctor .mock-bottle.jar {
   background:
     linear-gradient(145deg, #ffffff 0%, #c7f4e8 52%, #119f91 100%);
+}
+
+.mock-scene.theme-cool {
+  background:
+    linear-gradient(145deg, #111820 0%, #202c38 58%, #0f151b 100%);
+}
+
+.mock-scene.theme-cool .mock-backdrop span {
+  color: #e6fbff;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.mock-scene.theme-cool .mock-bottle {
+  color: #ffffff;
+  border-radius: 18px 18px 10px 10px;
+  background:
+    linear-gradient(90deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0) 34%),
+    linear-gradient(145deg, #111820 0%, #2b3641 58%, #070b10 100%);
+}
+
+.mock-scene.theme-cool .mock-bottle span {
+  color: #eafcff;
+  background: linear-gradient(135deg, rgba(55, 211, 122, 0.28), rgba(155, 231, 255, 0.16));
+}
+
+.mock-scene.theme-cool .mock-bottle.tube span {
+  background: linear-gradient(135deg, rgba(155, 231, 255, 0.24), rgba(55, 211, 122, 0.16));
+}
+
+.mock-scene.theme-cool .mock-bottle.jar span {
+  background: linear-gradient(135deg, rgba(255, 59, 47, 0.3), rgba(255, 255, 255, 0.12));
+}
+
+.mock-scene.theme-pink {
+  background:
+    linear-gradient(145deg, #fff4f8 0%, #eefaff 54%, #f3fff7 100%);
+}
+
+.mock-scene.theme-pink .mock-backdrop span {
+  color: #7a2445;
+  background: rgba(255, 255, 255, 0.78);
+}
+
+.mock-scene.theme-pink .mock-bottle {
+  border-radius: 24px 24px 14px 14px;
+  background:
+    linear-gradient(90deg, rgba(255, 255, 255, 0.72), rgba(255, 255, 255, 0) 34%),
+    linear-gradient(145deg, #ffffff 0%, #ffb1cb 58%, #78d8ff 100%);
+}
+
+.mock-scene.theme-pink .mock-bottle.tube {
+  background:
+    linear-gradient(90deg, rgba(255, 255, 255, 0.72), rgba(255, 255, 255, 0) 34%),
+    linear-gradient(145deg, #ffffff 0%, #94e7c4 58%, #78d8ff 100%);
+}
+
+.mock-scene.theme-pink .mock-bottle.jar {
+  background:
+    linear-gradient(145deg, #ffffff 0%, #ffd4e4 48%, #7bdc98 100%);
 }
 
 .clarity-section {
@@ -1433,6 +1696,71 @@ footer,
     inset 0 0 0 1px color-mix(in srgb, var(--brand) 14%, transparent);
   font-size: 0.78rem;
   font-weight: 1000;
+}
+
+.product-card-site.theme-cool {
+  border-color: rgba(55, 211, 122, 0.34);
+  background:
+    linear-gradient(180deg, #111820 0%, #1d2934 35%, #ffffff 35%, #ffffff 100%);
+  box-shadow:
+    0 22px 66px rgba(16, 24, 33, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.62);
+}
+
+.product-card-site.theme-cool .product-card-site__face--front,
+.product-card-site.theme-cool .product-card-site__image {
+  background:
+    linear-gradient(145deg, #111820 0%, #1f2c38 68%, #0f151c 100%);
+}
+
+.product-card-site.theme-cool .product-card-site__image::before {
+  border-color: rgba(155, 231, 255, 0.18);
+  background:
+    linear-gradient(135deg, rgba(55, 211, 122, 0.12), rgba(155, 231, 255, 0.08)),
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.055) 0 1px, transparent 1px 18px);
+}
+
+.product-card-site.theme-cool .product-card-site__body,
+.product-card-site.theme-cool .product-card-site__footer {
+  background:
+    linear-gradient(135deg, #ffffff, #f2fbf7 58%, #eef9ff);
+}
+
+.product-card-site.theme-cool .product-card-site__front-meta span {
+  color: #149653;
+}
+
+.product-card-site.theme-cool .product-card-site__image img {
+  filter: drop-shadow(0 22px 28px rgba(0, 0, 0, 0.35));
+}
+
+.product-card-site.theme-cool .app-button {
+  color: #0f151c;
+  background: linear-gradient(135deg, #37d37a, #9be7ff);
+}
+
+.product-card-site.theme-pink {
+  border-color: rgba(255, 122, 168, 0.34);
+  background:
+    linear-gradient(180deg, #fff3f8 0%, #eefaff 40%, #ffffff 40%, #ffffff 100%);
+}
+
+.product-card-site.theme-pink .product-card-site__image {
+  background:
+    linear-gradient(145deg, #fff3f8 0%, #eefaff 52%, #f3fff7 100%);
+}
+
+.product-card-site.theme-pink .product-card-site__image::before {
+  border-color: rgba(255, 122, 168, 0.18);
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.64), rgba(255, 255, 255, 0.18)),
+    repeating-linear-gradient(90deg, rgba(120, 216, 255, 0.12) 0 1px, transparent 1px 28px),
+    repeating-linear-gradient(0deg, rgba(255, 122, 168, 0.1) 0 1px, transparent 1px 28px);
+}
+
+.product-card-site.theme-pink .product-card-site__image img {
+  border-radius: 16px;
+  filter: drop-shadow(0 18px 18px rgba(122, 36, 69, 0.12));
 }
 
 .catalog-empty {
@@ -2600,6 +2928,22 @@ footer p {
   --brand-pale: #eafffb;
 }
 
+.theme-cool {
+  --brand: #37d37a;
+  --brand-deep: #101821;
+  --brand-accent: #9be7ff;
+  --brand-soft: rgba(55, 211, 122, 0.24);
+  --brand-pale: #eef7f4;
+}
+
+.theme-pink {
+  --brand: #ff7aa8;
+  --brand-deep: #7a2445;
+  --brand-accent: #78d8ff;
+  --brand-soft: rgba(255, 122, 168, 0.26);
+  --brand-pale: #fff3f8;
+}
+
 .theme-sante.brand-detail {
   background:
     radial-gradient(circle at 76% 12%, rgba(24, 191, 208, 0.22), transparent 25%),
@@ -2748,6 +3092,54 @@ footer p {
   border-radius: 28px;
   clip-path: polygon(12% 16%, 82% 6%, 94% 34%, 54% 42%, 88% 92%, 20% 78%, 8% 54%, 42% 45%);
   transform: rotate(9deg);
+}
+
+.theme-cool.brand-detail {
+  background:
+    linear-gradient(180deg, #101821 0%, #172331 42%, #f7fbff 42%, #ffffff 100%);
+}
+
+.theme-cool.brand-detail::before {
+  background:
+    linear-gradient(118deg, rgba(55, 211, 122, 0.15) 0 16%, transparent 16% 100%),
+    linear-gradient(52deg, transparent 0 68%, rgba(155, 231, 255, 0.13) 68% 100%),
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.055) 0 1px, transparent 1px 42px);
+}
+
+.theme-cool.brand-detail::after {
+  border-radius: 8px;
+  background: linear-gradient(135deg, rgba(55, 211, 122, 0.62), rgba(255, 59, 47, 0.34));
+  clip-path: polygon(8% 14%, 88% 4%, 96% 34%, 58% 44%, 88% 94%, 18% 82%, 4% 52%);
+  transform: rotate(-8deg);
+}
+
+.theme-cool.brand-detail .brand-hero h1,
+.theme-cool.brand-detail .brand-hero p {
+  color: #ffffff;
+}
+
+.theme-cool.brand-detail .back-link {
+  color: #d8f8ff;
+}
+
+.theme-pink.brand-detail {
+  background:
+    linear-gradient(180deg, #fff0f7 0%, #eefaff 48%, #ffffff 100%);
+}
+
+.theme-pink.brand-detail::before {
+  background:
+    repeating-linear-gradient(90deg, rgba(120, 216, 255, 0.12) 0 1px, transparent 1px 38px),
+    repeating-linear-gradient(0deg, rgba(255, 122, 168, 0.1) 0 1px, transparent 1px 38px),
+    linear-gradient(132deg, rgba(255, 122, 168, 0.15) 0 18%, transparent 18% 100%);
+}
+
+.theme-pink.brand-detail::after {
+  background:
+    linear-gradient(135deg, rgba(255, 122, 168, 0.52), rgba(120, 216, 255, 0.34), rgba(123, 220, 152, 0.25));
+  border-radius: 58% 42% 56% 44% / 48% 36% 64% 52%;
+  clip-path: polygon(50% 4%, 62% 30%, 92% 20%, 72% 50%, 88% 86%, 52% 70%, 24% 96%, 32% 60%, 4% 48%, 34% 38%);
+  transform: rotate(8deg);
 }
 
 .reveal {
