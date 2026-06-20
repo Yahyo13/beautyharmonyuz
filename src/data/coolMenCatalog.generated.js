@@ -71,7 +71,7 @@ export const coolMenCatalogProducts = products.map((product, index) => {
     descriptionRu: product.descriptionRu,
     descriptionUz: product.descriptionUz,
     href: uzumShopUrl,
-    image: `products/cool-men-clean/${id}.png`,
+    image: `products/cool-men-clean/${id}.webp`,
     price: null,
     uzumCardPrice: null,
     source: sourceName,

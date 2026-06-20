@@ -149,7 +149,7 @@ export const pinkElephantCatalogProducts = specs.map((product, index) => {
     descriptionRu: product.descriptionRu,
     descriptionUz: product.descriptionUz,
     href: uzumShopUrl,
-    image: `products/pink-elephant-clean/${id}.png`,
+    image: `products/pink-elephant-clean/${id}.webp`,
     price: null,
     uzumCardPrice: null,
     source: sourceName,

@@ -267,7 +267,7 @@ function makeProduct(spec, index) {
     barcode: "",
     source: sourceName,
     href: uzumShopUrl,
-    image: `products/fresh-juice-clean/${productId}.png`,
+    image: `products/fresh-juice-clean/${productId}.webp`,
     uzumImage: "",
     price: null,
     uzumCardPrice: null,
