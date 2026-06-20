@@ -9,10 +9,16 @@ export const languageOptions = [
 
 export const ui = {
   ru: {
-    nav: { home: "Главная", catalog: "Каталог", brands: "Бренды", b2b: "B2B" },
+    nav: { home: "Главная", catalog: "Каталог", brands: "Бренды", about: "О компании", favorites: "Избранное", b2b: "B2B" },
     menu: { open: "Открыть меню", close: "Закрыть меню" },
     language: "Язык сайта",
+    theme: { label: "Тема сайта", light: "Светлая", dark: "Темная", switchToLight: "Включить светлую тему", switchToDark: "Включить темную тему" },
     uzumMarket: "Uzum Market",
+    cookies: {
+      title: "Cookies",
+      text: "Мы используем файлы cookies и локальное хранение для быстрой работы сайта, сохранения языка, темы и избранных товаров.",
+      accept: "Понятно",
+    },
     common: {
       allBrands: "Все бренды",
       productsInUzum: "Товары в Uzum",
@@ -30,12 +36,14 @@ export const ui = {
       marketplace: "Маркетплейс",
       goToUzum: "Перейти в Uzum Market",
       toHome: "На главную",
+      addFavorite: "Добавить в избранное",
+      removeFavorite: "Убрать из избранного",
     },
     home: {
       eyebrow: "Импорт косметики, ухода и household-брендов",
       title: "Beauty Harmony",
       intro:
-        "Восемь брендов для понятной витрины: Dr.Sante, Fresh Juice, The Doctor, Green Pharmacy, Lady Caramel, Cool Men, Pink Elephant и Mister Dez. Каждый бренд раскрыт отдельно: производитель, год, категории, сильные стороны и ссылки на источники.",
+        "Семь брендов для понятной витрины: Dr.Sante, Fresh Juice, The Doctor, Green Pharmacy, Lady Caramel, Cool Men и Pink Elephant. Каждый бренд раскрыт отдельно: производитель, год, категории, сильные стороны и ссылки на источники.",
       catalogCta: "Каталог товаров",
       brandsCta: "Смотреть бренды",
       b2bCta: "B2B партнерство",
@@ -43,9 +51,9 @@ export const ui = {
       statCountries: "страны у Elfa Group",
       statUzum: "готовая страница магазина",
       assortmentLabel: "Понятный ассортимент",
-      assortmentTitle: "От фруктового body-care до бытовой химии",
+      assortmentTitle: "От фруктового body-care до семейного ухода",
       assortmentText:
-        "Сайт работает как мини-каталог: на главной виден общий портфель, а внутри каждой карточки есть отдельная страница с фактами, стилем бренда и подробным описанием. Green Pharmacy выглядит натурально, Fresh Juice - ярко и фруктово, Lady Caramel - карамельно и гладко, Mister Dez - чисто и технологично.",
+        "Сайт работает как мини-каталог: на главной виден общий портфель, а внутри каждой карточки есть отдельная страница с фактами, стилем бренда и подробным описанием. Green Pharmacy выглядит натурально, Fresh Juice - ярко и фруктово, Lady Caramel - карамельно и гладко, Pink Elephant - мягко и по-детски.",
       clarityLabel: "Как читать каталог",
       clarityTitle: "Каждый бренд закрывает свою задачу",
       naturalTitle: "Натуральный уход",
@@ -53,11 +61,11 @@ export const ui = {
       emotionTitle: "Эмоция и цвет",
       emotionText: "Fresh Juice и Dr.Sante дают яркую косметическую полку: ароматы, текстуры, тренды и быстрый выбор.",
       practicalTitle: "Практичная категория",
-      practicalText: "Lady Caramel добавляет депиляцию, а Mister Dez расширяет предложение товарами для чистого дома.",
+      practicalText: "Lady Caramel добавляет депиляцию, Cool Men закрывает мужской уход, а Pink Elephant расширяет предложение детской линейкой.",
       producersLabel: "Производители",
-      producersTitle: "Elfa Group и Mister Dez: кто стоит за брендами",
+      producersTitle: "Elfa Group: кто стоит за брендами",
       producersText:
-        "Elfa Group - международная косметическая компания с 6 фабриками в Украине, Польше и Словакии. На официальном сайте указаны 26 лет на рынке, 63 страны, 23 бренда и 3000 инновационных формул. Mister Dez показываем как украинское направление бытовой химии для уборки, посуды и чистого дома.",
+        "Elfa Group - международная косметическая компания с 6 фабриками в Украине, Польше и Словакии. На официальном сайте указаны 26 лет на рынке, 63 страны, 23 бренда и 3000 инновационных формул.",
     },
     catalogPreview: {
       label: "Товары из Uzum",
@@ -110,6 +118,42 @@ export const ui = {
       moreLabel: "Еще бренды",
       moreTitle: "Посмотреть другие страницы",
     },
+    about: {
+      eyebrow: "О компании",
+      title: "Beauty Harmony развивает понятную витрину ухода и товаров для дома",
+      intro:
+        "Мы собираем для рынка Узбекистана бренды с сильной историей, понятными категориями и готовой логикой продаж: уход за волосами, лицом, телом, депиляция, детская линейка, мужской уход и household.",
+      missionLabel: "Наша задача",
+      missionTitle: "Сделать импортные бренды ближе к покупателю",
+      missionText:
+        "На сайте каждый бренд раскрыт отдельно: производитель, годы работы, категории, преимущества и карточки товаров. Так покупатель быстро понимает, что выбрать, а партнер видит, как бренд можно поставить на полку или в маркетплейс.",
+      portfolioTitle: "Портфель брендов",
+      portfolioText:
+        "В каталоге представлены Dr.Sante, Fresh Juice, The Doctor, Green Pharmacy, Lady Caramel, Cool Men и Pink Elephant. Для каждого направления подобрана своя визуальная подача и структура товара.",
+      logisticsTitle: "Для розницы и B2B",
+      logisticsText:
+        "Beauty Harmony ведет покупателя в Uzum Market, а для партнеров оставляет отдельную B2B-страницу с заявкой на опт, поставки, розничные сети и маркетплейсы.",
+      stats: [
+        ["7", "брендов в портфеле"],
+        ["300+", "товаров в каталоге"],
+        ["RU / UZ", "языки сайта"],
+      ],
+      values: [
+        "Понятные карточки товаров с фото, назначением и ссылкой на покупку.",
+        "Отдельные страницы брендов с историей, производителем и преимуществами.",
+        "Гибкая витрина: каталог можно расширять через Firebase и локальные данные.",
+      ],
+    },
+    favorites: {
+      eyebrow: "Личная подборка",
+      title: "Избранные товары",
+      intro: "Здесь собираются товары, которые покупатель отметил сердечком. Выбор сохраняется в этом браузере.",
+      count: "товаров в избранном",
+      loading: "Проверяем каталог",
+      emptyTitle: "Пока ничего не добавлено",
+      emptyText: "Откройте каталог и нажмите сердечко на товарах, которые хотите сохранить.",
+      openCatalog: "Перейти в каталог",
+    },
     b2b: {
       eyebrow: "Отдельная страница партнерства",
       title: "B2B сотрудничество",
@@ -155,10 +199,16 @@ export const ui = {
     },
   },
   uz: {
-    nav: { home: "Asosiy", catalog: "Katalog", brands: "Brendlar", b2b: "B2B" },
+    nav: { home: "Asosiy", catalog: "Katalog", brands: "Brendlar", about: "Kompaniya", favorites: "Saralangan", b2b: "B2B" },
     menu: { open: "Menyuni ochish", close: "Menyuni yopish" },
     language: "Sayt tili",
+    theme: { label: "Sayt mavzusi", light: "Yorug'", dark: "Qorong'i", switchToLight: "Yorug' mavzuni yoqish", switchToDark: "Qorong'i mavzuni yoqish" },
     uzumMarket: "Uzum Market",
+    cookies: {
+      title: "Cookies",
+      text: "Sayt tez ishlashi, til, mavzu va saralangan tovarlarni saqlash uchun cookies hamda lokal saqlashdan foydalanamiz.",
+      accept: "Tushunarli",
+    },
     common: {
       allBrands: "Barcha brendlar",
       productsInUzum: "Uzumdagi tovarlar",
@@ -176,12 +226,14 @@ export const ui = {
       marketplace: "Marketpleys",
       goToUzum: "Uzum Marketga o'tish",
       toHome: "Asosiy sahifaga",
+      addFavorite: "Saralanganlarga qo'shish",
+      removeFavorite: "Saralanganlardan olib tashlash",
     },
     home: {
       eyebrow: "Kosmetika, parvarish va household brendlar importi",
       title: "Beauty Harmony",
       intro:
-        "Tushunarli vitrina uchun sakkizta brend: Dr.Sante, Fresh Juice, The Doctor, Green Pharmacy, Lady Caramel, Cool Men, Pink Elephant va Mister Dez. Har bir brend alohida ochilgan: ishlab chiqaruvchi, yil, kategoriyalar, afzalliklar va manbalarga havolalar.",
+        "Tushunarli vitrina uchun yettita brend: Dr.Sante, Fresh Juice, The Doctor, Green Pharmacy, Lady Caramel, Cool Men va Pink Elephant. Har bir brend alohida ochilgan: ishlab chiqaruvchi, yil, kategoriyalar, afzalliklar va manbalarga havolalar.",
       catalogCta: "Tovarlar katalogi",
       brandsCta: "Brendlarni ko'rish",
       b2bCta: "B2B hamkorlik",
@@ -189,9 +241,9 @@ export const ui = {
       statCountries: "Elfa Group mamlakatlari",
       statUzum: "tayyor do'kon sahifasi",
       assortmentLabel: "Tushunarli assortiment",
-      assortmentTitle: "Mevali body-care'dan maishiy kimyogacha",
+      assortmentTitle: "Mevali body-care'dan oilaviy parvarishgacha",
       assortmentText:
-        "Sayt mini-katalog kabi ishlaydi: asosiy sahifada umumiy portfel ko'rinadi, har bir kartochkada esa faktlar, brend uslubi va batafsil tavsif berilgan alohida sahifa bor. Green Pharmacy tabiiy, Fresh Juice yorqin va mevali, Lady Caramel yumshoq depilyatsiya, Mister Dez esa tozalik va texnologiya kayfiyatida.",
+        "Sayt mini-katalog kabi ishlaydi: asosiy sahifada umumiy portfel ko'rinadi, har bir kartochkada esa faktlar, brend uslubi va batafsil tavsif berilgan alohida sahifa bor. Green Pharmacy tabiiy, Fresh Juice yorqin va mevali, Lady Caramel yumshoq depilyatsiya, Pink Elephant esa bolalarcha mayin kayfiyatda.",
       clarityLabel: "Katalogni qanday o'qish kerak",
       clarityTitle: "Har bir brend o'z vazifasini yopadi",
       naturalTitle: "Tabiiy parvarish",
@@ -199,11 +251,11 @@ export const ui = {
       emotionTitle: "Hissiyot va rang",
       emotionText: "Fresh Juice va Dr.Sante kosmetika polkasiga aromatlar, teksturalar, trendlar va tez tanlov olib kiradi.",
       practicalTitle: "Amaliy kategoriya",
-      practicalText: "Lady Caramel depilyatsiyani qo'shadi, Mister Dez esa taklifni uy tozaligi tovarlari bilan kengaytiradi.",
+      practicalText: "Lady Caramel depilyatsiyani qo'shadi, Cool Men erkaklar parvarishini yopadi, Pink Elephant esa bolalar liniyasi bilan vitrinani kengaytiradi.",
       producersLabel: "Ishlab chiqaruvchilar",
-      producersTitle: "Elfa Group va Mister Dez: brendlar ortida kim turibdi",
+      producersTitle: "Elfa Group: brendlar ortida kim turibdi",
       producersText:
-        "Elfa Group - Ukraina, Polsha va Slovakiyada 6 ta fabrikaga ega xalqaro kosmetika kompaniyasi. Rasmiy saytda bozorda 26 yil, 63 mamlakat, 23 brend va 3000 innovatsion formula ko'rsatilgan. Mister Dez esa uy tozaligi, idish-tovoq va maishiy kimyo uchun Ukraina yo'nalishi sifatida ko'rsatiladi.",
+        "Elfa Group - Ukraina, Polsha va Slovakiyada 6 ta fabrikaga ega xalqaro kosmetika kompaniyasi. Rasmiy saytda bozorda 26 yil, 63 mamlakat, 23 brend va 3000 innovatsion formula ko'rsatilgan.",
     },
     catalogPreview: {
       label: "Uzumdagi tovarlar",
@@ -255,6 +307,42 @@ export const ui = {
       sourceTitle: "Faktlar rasmiy sahifadan olingan",
       moreLabel: "Yana brendlar",
       moreTitle: "Boshqa sahifalarni ko'rish",
+    },
+    about: {
+      eyebrow: "Kompaniya haqida",
+      title: "Beauty Harmony parvarish va uy tovarlari uchun tushunarli vitrina yaratadi",
+      intro:
+        "Biz O'zbekiston bozori uchun kuchli tarixga, aniq kategoriyalarga va sotuvga tayyor mantiqqa ega brendlarni jamlaymiz: soch, yuz, tana parvarishi, depilyatsiya, bolalar liniyasi, erkaklar parvarishi va household.",
+      missionLabel: "Bizning vazifa",
+      missionTitle: "Import brendlarni xaridorga yaqinroq qilish",
+      missionText:
+        "Saytda har bir brend alohida ochilgan: ishlab chiqaruvchi, ishlash yillari, kategoriyalar, afzalliklar va tovar kartochkalari. Xaridor tez tanlaydi, hamkor esa brendni polka yoki marketpleysga qanday chiqarishni ko'radi.",
+      portfolioTitle: "Brendlar portfeli",
+      portfolioText:
+        "Katalogda Dr.Sante, Fresh Juice, The Doctor, Green Pharmacy, Lady Caramel, Cool Men va Pink Elephant bor. Har bir yo'nalish uchun o'ziga mos vizual uslub va tovar tuzilmasi tanlangan.",
+      logisticsTitle: "Chakana va B2B uchun",
+      logisticsText:
+        "Beauty Harmony xaridorni Uzum Marketga olib boradi, hamkorlar uchun esa ulgurji savdo, yetkazib berish, chakana tarmoqlar va marketpleyslar bo'yicha alohida B2B ariza sahifasi bor.",
+      stats: [
+        ["7", "portfeldagi brendlar"],
+        ["300+", "katalogdagi tovarlar"],
+        ["RU / UZ", "sayt tillari"],
+      ],
+      values: [
+        "Foto, vazifa va xarid havolasi bor tushunarli tovar kartochkalari.",
+        "Tarix, ishlab chiqaruvchi va afzalliklar berilgan alohida brend sahifalari.",
+        "Moslashuvchan vitrina: katalog Firebase va lokal ma'lumotlar orqali kengayadi.",
+      ],
+    },
+    favorites: {
+      eyebrow: "Shaxsiy tanlov",
+      title: "Saralangan tovarlar",
+      intro: "Bu yerda xaridor yurakcha bilan belgilagan tovarlar yig'iladi. Tanlov ushbu brauzerda saqlanadi.",
+      count: "saralangan tovarlar",
+      loading: "Katalog tekshirilmoqda",
+      emptyTitle: "Hozircha hech narsa qo'shilmagan",
+      emptyText: "Katalogni oching va saqlamoqchi bo'lgan tovarlarda yurakchani bosing.",
+      openCatalog: "Katalogga o'tish",
     },
     b2b: {
       eyebrow: "Hamkorlik uchun alohida sahifa",
@@ -573,45 +661,6 @@ export const brands = [
     ],
     source: "https://uzum.uz/uz/shop/beautyh",
   },
-  {
-    slug: "mister-dez",
-    name: "Mister Dez",
-    localName: "Mister DEZ",
-    country: "Украина",
-    manufacturer: "Mister DEZ",
-    established: "2014 для Mister DEZ Eco-Cleaning",
-    market: "украинское направление бытовой химии",
-    sourceNote: "Страна бренда обновлена на Украину",
-    categories: ["бытовая химия", "средства для ПММ", "уборка", "professional", "auto professional"],
-    accent: "#7438ff",
-    accent2: "#23c8ff",
-    accent3: "#f3f0ff",
-    theme: "theme-dez",
-    mood: "чистота, household, сильная бытовая химия",
-    visualWords: ["Clean", "Eco", "Pro"],
-    intro:
-      "Mister Dez - украинское household-направление: уборка, посуда, посудомоечные машины, professional-линейки и автохимия.",
-    detail:
-      "Бренд закрывает практичную полку бытовой химии: средства для чистого дома, кухни, ванной, посуды, профессиональной уборки и автоухода.",
-    buyerText:
-      "Нужен для расширения предложения за пределы косметики: покупатель видит рядом уход за собой и товары для чистого дома.",
-    stats: [
-      ["2014", "старт Eco-Cleaning"],
-      ["ECO", "линейка для дома"],
-      ["PRO", "professional-направление"],
-    ],
-    facts: [
-      "Mister Dez относится к бытовой химии, а не к косметическому уходу.",
-      "Бренд помогает расширить витрину товарами для чистого дома.",
-      "В ассортименте можно показывать домашние и professional-линейки.",
-    ],
-    timeline: [
-      ["2014", "запуск Mister DEZ Eco-Cleaning"],
-      ["2016", "средства Mister DEZ для посудомоечных машин"],
-      ["2025", "Mister DEZ AUTO PROFESSIONAL, ECO и PROFESSIONAL"],
-    ],
-    source: "https://uzum.uz/uz/shop/beautyh",
-  },
 ];
 
 const brandTranslations = {
@@ -717,21 +766,6 @@ const brandTranslations = {
       facts: ["Shampunlar bolalar sochi va bosh terisini ko'z yoshsiz tozalaydi.", "Cho'milish ko'piklarida pantenol, allantoin va o'simlik ekstraktlari bor.", "Tish pastalari 3-6 yosh bolalar uchun, suyuq kalsiy va aloe sharbati bilan."],
       timeline: [["PDF", "Pink Elephant bolalar liniyasi katalogda berilgan"], ["3+", "mahsulotlar 3 yoshdan bolalar uchun"], ["kategoriyalar", "shampunlar, ko'piklar, pastalar va lab bo'yoqlari"]],
     },
-    "mister-dez": {
-      country: "Ukraina",
-      manufacturer: "Mister DEZ",
-      established: "Mister DEZ Eco-Cleaning uchun 2014",
-      market: "Ukraina maishiy kimyo yo'nalishi",
-      sourceNote: "Brend mamlakati Ukraina deb yangilandi",
-      categories: ["maishiy kimyo", "idish yuvish mashinasi vositalari", "tozalash", "professional", "auto professional"],
-      mood: "tozalik, household, kuchli maishiy kimyo",
-      intro: "Mister Dez - Ukraina household yo'nalishi: tozalash, idish-tovoq, professional liniyalar va avtokimyo.",
-      detail: "Brend toza uy uchun amaliy polkani yopadi: oshxona, hammom, idish-tovoq, professional tozalash va auto-care vositalari.",
-      buyerText: "Kosmetikadan tashqariga chiqish uchun kerak: xaridor o'ziga parvarish va toza uy uchun tovarlarni yonma-yon ko'radi.",
-      stats: [["2014", "Eco-Cleaning starti"], ["ECO", "uy uchun liniya"], ["PRO", "professional yo'nalish"]],
-      facts: ["Mister Dez kosmetik parvarish emas, maishiy kimyo yo'nalishiga kiradi.", "Brend vitrinani toza uy uchun tovarlar bilan kengaytiradi.", "Assortimentda uy va professional liniyalarni ko'rsatish mumkin."],
-      timeline: [["2014", "Mister DEZ Eco-Cleaning ishga tushdi"], ["2016", "idish yuvish mashinalari uchun vositalar"], ["2025", "AUTO PROFESSIONAL, ECO va PROFESSIONAL"]],
-    },
   },
 };
 
@@ -757,5 +791,4 @@ export const sources = [
   ["Lady Caramel", "https://pl.elfagroup.com/brands/lady-caramel/"],
   ["Cool Men PDF", "https://uzum.uz/uz/shop/beautyh"],
   ["Pink Elephant PDF", "https://uzum.uz/uz/shop/beautyh"],
-  ["Mister DEZ", "https://uzum.uz/uz/shop/beautyh"],
 ];

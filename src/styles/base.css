@@ -18,6 +18,17 @@
   --shadow: 0 22px 70px rgba(42, 35, 28, 0.14);
 }
 
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  color: #edf5f8;
+  background: #0f141b;
+  --ink: #edf5f8;
+  --muted: #aab6c4;
+  --paper: #151d27;
+  --line: rgba(226, 237, 247, 0.14);
+  --shadow: 0 22px 70px rgba(0, 0, 0, 0.34);
+}
+
 * {
   box-sizing: border-box;
 }
@@ -31,6 +42,12 @@ body {
   min-width: 320px;
   min-height: 100vh;
   overflow-x: hidden;
+  color: var(--ink);
+  background: #fff9f4;
+}
+
+:root[data-theme="dark"] body {
+  background: #0f141b;
 }
 
 button,

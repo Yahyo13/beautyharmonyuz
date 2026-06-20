@@ -1002,7 +1002,13 @@ export const localCatalogProducts = [
   ...pinkElephantCatalogProducts,
 ];
 
-export const catalogProducts = localCatalogProducts;
+export const hiddenCatalogBrandSlugs = new Set(["mister-dez"]);
+
+export function isVisibleCatalogProduct(product) {
+  return !hiddenCatalogBrandSlugs.has(product?.brandSlug);
+}
+
+export const catalogProducts = localCatalogProducts.filter(isVisibleCatalogProduct);
 
 const localCatalogProductById = new Map(localCatalogProducts.map((product) => [product.id, product]));
 const localCatalogProductByBarcode = new Map(localCatalogProducts.filter((product) => product.barcode).map((product) => [product.barcode, product]));
@@ -1093,15 +1099,51 @@ function getCategoryDescription(category, language = "ru") {
   return categoryDescriptions[language]?.[category] || categoryDescriptions.ru[category] || "товар ежедневного ухода";
 }
 
+function normalizeLocalizedText(value) {
+  return String(value || "")
+    .trim()
+    .replace(/\s+/g, " ")
+    .toLowerCase();
+}
+
+function isSameLocalizedValue(value, fallback) {
+  const normalizedValue = normalizeLocalizedText(value);
+  const normalizedFallback = normalizeLocalizedText(fallback);
+  return Boolean(normalizedValue && normalizedFallback && normalizedValue === normalizedFallback);
+}
+
 function getLocalizedProductField(product, field, language) {
   const localizedKey = `${field}${language === "uz" ? "Uz" : "Ru"}`;
   const fallbackKey = `${field}${language === "uz" ? "Ru" : "Uz"}`;
-  return product[localizedKey] || product[field] || product[fallbackKey] || "";
+  const localizedValue = product[localizedKey];
+
+  if (language === "uz") {
+    const russianValue = product[`${field}Ru`] || product[field] || product[fallbackKey] || "";
+    return localizedValue && !isSameLocalizedValue(localizedValue, russianValue) ? localizedValue : "";
+  }
+
+  return localizedValue || product[field] || product[fallbackKey] || "";
 }
 
 function formatProductUnits(text, language) {
   if (!text || language !== "uz") return text;
   return String(text).replace(/(\d+(?:[,.]\d+)?)\s*мл/g, "$1 ml").replace(/(\d+(?:[,.]\d+)?)\s*г/g, "$1 g");
+}
+
+function buildUzbekProductTitle(product) {
+  const brand = getProductBrand(product);
+  const brandName = brand?.name || product.brand || "";
+  const category = getCategoryLabel(product.category, "uz");
+  const line =
+    product.lineUz && !isSameLocalizedValue(product.lineUz, product.lineRu)
+      ? product.lineUz
+      : product.seriesUz && !isSameLocalizedValue(product.seriesUz, product.seriesRu)
+        ? product.seriesUz
+        : "";
+  const volume = product.volume || inferProductVolume(product.nameRu || product.titleRu || product.name || product.title || "");
+  const pieces = [brandName, line, category].filter(Boolean);
+
+  return `${pieces.join(" ")}${volume ? `, ${formatProductUnits(volume, "uz")}` : ""}`;
 }
 
 export function getProductBrand(product) {
@@ -1113,7 +1155,10 @@ export function getProductTheme(product) {
 }
 
 export function getProductTitle(product, language = "ru") {
-  const title = language === "uz" ? product.nameUz || product.titleUz : product.nameRu || product.titleRu;
+  const title =
+    language === "uz"
+      ? getLocalizedProductField(product, "name", "uz") || getLocalizedProductField(product, "title", "uz") || buildUzbekProductTitle(product)
+      : product.nameRu || product.titleRu;
   return formatProductUnits(title || product.name || product.title || product.uzumTitle || "", language);
 }
 
@@ -1244,4 +1289,4 @@ export function extractApiProducts(payload) {
   return [];
 }
 
-export const fallbackCatalogProducts = localCatalogProducts.map(normalizeCatalogProduct);
+export const fallbackCatalogProducts = localCatalogProducts.map(normalizeCatalogProduct).filter(isVisibleCatalogProduct);

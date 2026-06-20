@@ -3,14 +3,17 @@ import {
   ArrowLeft,
   ArrowRight,
   ArrowUpRight,
+  Building2,
   CheckCircle2,
   Handshake,
+  Heart,
   HeartHandshake,
   Instagram,
   Leaf,
   Lock,
   LogOut,
   Menu,
+  Moon,
   PackageCheck,
   Palette,
   RefreshCw,
@@ -21,6 +24,7 @@ import {
   SlidersHorizontal,
   Sparkles,
   Store,
+  Sun,
   Tags,
   Trash2,
   Truck,
@@ -61,6 +65,7 @@ import {
   getProductTheme,
   getProductTitle,
   getProductVolume,
+  isVisibleCatalogProduct,
   normalizeCatalogProduct,
 } from "./data/catalogData";
 import { fetchFirebaseCatalogProducts } from "./data/firebaseCatalogApi";
@@ -97,8 +102,27 @@ const LocaleContext = React.createContext({
   t: {},
 });
 
+const AppearanceContext = React.createContext({
+  colorMode: "light",
+  setColorMode: () => { },
+});
+
+const FavoritesContext = React.createContext({
+  favoriteIds: [],
+  isFavorite: () => false,
+  toggleFavorite: () => { },
+});
+
 function useLocale() {
   return React.useContext(LocaleContext);
+}
+
+function useAppearance() {
+  return React.useContext(AppearanceContext);
+}
+
+function useFavorites() {
+  return React.useContext(FavoritesContext);
 }
 
 // Общая кнопка сайта. Используется как <a>, если передан href, и как <button> без href.
@@ -195,7 +219,10 @@ function TurnstileWidget({ language, onVerify, onExpire, onError }) {
 // Шапка, меню, переключатель языка и место, куда подставляется текущая страница.
 function Shell({ route, children }) {
   const { language, setLanguage, t } = useLocale();
+  const { colorMode, setColorMode } = useAppearance();
+  const { favoriteIds } = useFavorites();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const isDarkMode = colorMode === "dark";
 
   useEffect(() => {
     setIsMenuOpen(false);
@@ -229,23 +256,41 @@ function Shell({ route, children }) {
           <a className={route === "/brands" || route.startsWith("/brand/") ? "is-active" : ""} href="#/brands" onClick={closeMenu}>
             {t.nav.brands}
           </a>
+          <a className={route === "/about" ? "is-active" : ""} href="#/about" onClick={closeMenu}>
+            {t.nav.about}
+          </a>
+          <a className={`nav-favorites-link${route === "/favorites" ? " is-active" : ""}`} href="#/favorites" onClick={closeMenu}>
+            <Heart size={16} aria-hidden="true" />
+            <span>{t.nav.favorites}</span>
+            {favoriteIds.length > 0 && <b>{favoriteIds.length}</b>}
+          </a>
           <a className={route === "/b2b" ? "is-active" : ""} href="#/b2b" onClick={closeMenu}>
             {t.nav.b2b}
           </a>
         </div>
 
-        <div className="language-toggle" role="group" aria-label={t.language}>
-          {languageOptions.map((option) => (
-            <button
-              className={language === option.value ? "is-active" : ""}
-              type="button"
-              key={option.value}
-              onClick={() => setLanguage(option.value)}
-            >
-              {option.label}
-            </button>
-          ))}
-        </div>
+        <label className="language-select" aria-label={t.language}>
+          <select value={language} onChange={(event) => setLanguage(event.target.value)}>
+            {languageOptions.map((option) => (
+              <option value={option.value} key={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <button
+          className={`theme-toggle${isDarkMode ? " is-dark" : ""}`}
+          type="button"
+          aria-label={isDarkMode ? t.theme.switchToLight : t.theme.switchToDark}
+          title={isDarkMode ? t.theme.switchToLight : t.theme.switchToDark}
+          onClick={() => setColorMode(isDarkMode ? "light" : "dark")}
+        >
+          <span className="theme-toggle__icon" aria-hidden="true">
+            <Moon className="theme-toggle__moon" size={18} />
+            <Sun className="theme-toggle__sun" size={18} />
+          </span>
+        </button>
 
         <AppButton href={uzumShopUrl} variant="ghost" icon={ShoppingBag}>
           {t.uzumMarket}
@@ -266,7 +311,32 @@ function Shell({ route, children }) {
       {children}
 
       <Footer />
+      <CookieNotice />
     </main>
+  );
+}
+
+function CookieNotice() {
+  const { t } = useLocale();
+  const [isVisible, setIsVisible] = useState(() => localStorage.getItem("beauty-harmony-cookies-ok") !== "yes");
+
+  const acceptCookies = () => {
+    localStorage.setItem("beauty-harmony-cookies-ok", "yes");
+    setIsVisible(false);
+  };
+
+  if (!isVisible) return null;
+
+  return (
+    <aside className="cookie-notice" aria-live="polite">
+      <div>
+        <strong>{t.cookies.title}</strong>
+        <p>{t.cookies.text}</p>
+      </div>
+      <button type="button" onClick={acceptCookies}>
+        {t.cookies.accept}
+      </button>
+    </aside>
   );
 }
 
@@ -606,7 +676,45 @@ async function loadCatalogFromMockApi() {
   const response = await fetch(catalogApiUrl, { headers: { Accept: "application/json" } });
   if (!response.ok) throw new Error(`Catalog API responded ${response.status}`);
   const payload = await response.json();
-  return extractApiProducts(payload).map(normalizeCatalogProduct).filter((product) => product.nameRu || product.name);
+  return extractApiProducts(payload)
+    .map(normalizeCatalogProduct)
+    .filter((product) => (product.nameRu || product.name) && isVisibleCatalogProduct(product));
+}
+
+async function loadBestCatalogProducts() {
+  try {
+    const firebaseProducts = await fetchFirebaseCatalogProducts();
+    const normalizedFirebaseProducts = firebaseProducts
+      .map(normalizeCatalogProduct)
+      .filter((product) => (product.nameRu || product.name) && isVisibleCatalogProduct(product));
+
+    if (normalizedFirebaseProducts.length > 0) {
+      return {
+        products: mergeCatalogProducts(normalizedFirebaseProducts, fallbackCatalogProducts),
+        source: "firebase",
+      };
+    }
+  } catch (firebaseError) {
+    console.warn("[Catalog] Firebase failed:", firebaseError?.code, firebaseError?.message);
+  }
+
+  try {
+    const apiProducts = await loadCatalogFromMockApi();
+
+    if (apiProducts.length > 0) {
+      return {
+        products: mergeCatalogProducts(apiProducts, fallbackCatalogProducts),
+        source: "api",
+      };
+    }
+  } catch (apiError) {
+    console.warn("[Catalog] MockAPI failed:", apiError?.message);
+  }
+
+  return {
+    products: fallbackCatalogProducts,
+    source: "fallback",
+  };
 }
 
 function CatalogPage() {
@@ -622,49 +730,14 @@ function CatalogPage() {
   useEffect(() => {
     let isMounted = true;
 
-    async function loadCatalog() {
-      try {
-        const firebaseProducts = await fetchFirebaseCatalogProducts();
-        const normalizedFirebaseProducts = firebaseProducts
-          .map(normalizeCatalogProduct)
-          .filter((product) => product.nameRu || product.name);
-
-        if (!isMounted) return;
-
-        if (normalizedFirebaseProducts.length > 0) {
-          setCatalogProducts(mergeCatalogProducts(normalizedFirebaseProducts, fallbackCatalogProducts));
-          setCatalogSource("firebase");
-          return;
-        }
-      } catch (firebaseError) {
-        console.warn("[Catalog] Firebase failed:", firebaseError?.code, firebaseError?.message);
-      }
-
-      try {
-        const apiProducts = await loadCatalogFromMockApi();
-
-        if (!isMounted) return;
-
-        if (apiProducts.length > 0) {
-          setCatalogProducts(mergeCatalogProducts(apiProducts, fallbackCatalogProducts));
-          setCatalogSource("api");
-          return;
-        }
-      } catch (apiError) {
-        console.warn("[Catalog] MockAPI failed:", apiError?.message);
-      }
-
-      if (isMounted) {
-        setCatalogProducts(fallbackCatalogProducts);
-        setCatalogSource("fallback");
-      }
-
-      if (isMounted) setIsLoadingCatalog(false);
-    }
-
-    loadCatalog().finally(() => {
+    loadBestCatalogProducts().then(({ products, source }) => {
+      if (!isMounted) return;
+      setCatalogProducts(products);
+      setCatalogSource(source);
+    }).finally(() => {
       if (isMounted) setIsLoadingCatalog(false);
     });
+
     return () => {
       isMounted = false;
     };
@@ -891,6 +964,45 @@ function CatalogPage() {
   );
 }
 
+function FavoriteButton({ productId, className = "" }) {
+  const { t } = useLocale();
+  const { isFavorite, toggleFavorite } = useFavorites();
+  const [isAnimating, setIsAnimating] = useState(false);
+  const favorite = isFavorite(productId);
+  const label = favorite ? t.common.removeFavorite : t.common.addFavorite;
+
+  useEffect(() => {
+    if (!isAnimating) return undefined;
+    const timeoutId = window.setTimeout(() => setIsAnimating(false), 900);
+    return () => window.clearTimeout(timeoutId);
+  }, [isAnimating]);
+
+  function handleFavoriteClick(event) {
+    event.preventDefault();
+    event.stopPropagation();
+    toggleFavorite(productId);
+    setIsAnimating(false);
+    window.requestAnimationFrame(() => setIsAnimating(true));
+  }
+
+  return (
+    <button
+      className={`favorite-button${favorite ? " is-favorite" : ""}${isAnimating ? " is-animating" : ""}${className ? ` ${className}` : ""}`}
+      type="button"
+      aria-label={label}
+      aria-pressed={favorite}
+      title={label}
+      onClick={handleFavoriteClick}
+    >
+      <span className="favorite-button__logo" aria-hidden="true">
+        <small>LTD</small>
+        <b>BH</b>
+      </span>
+      <Heart className="favorite-button__heart" size={19} aria-hidden="true" />
+    </button>
+  );
+}
+
 // Одна карточка товара внутри каталога.
 function CatalogProductCard({ product }) {
   const { language, t } = useLocale();
@@ -928,6 +1040,7 @@ function CatalogProductCard({ product }) {
       <div className="product-card-site__inner">
         <div className="product-card-site__face product-card-site__face--front">
           <div className="product-card-site__image">
+            <FavoriteButton productId={product.id} />
             <img src={product.image} alt={productTitle} loading="lazy" />
           </div>
 
@@ -1136,6 +1249,165 @@ function BrandPage({ brand }) {
         </div>
       </section>
     </article>
+  );
+}
+
+function AboutCompanyPage() {
+  const { language, t } = useLocale();
+  const featuredBrands = brands.slice(0, 4).map((brand) => getBrandCopy(brand, language));
+
+  return (
+    <article className="about-company-page">
+      <header className="about-company-hero reveal is-visible">
+        <div>
+          <span className="eyebrow">
+            <Building2 size={17} aria-hidden="true" />
+            {t.about.eyebrow}
+          </span>
+          <h1>{t.about.title}</h1>
+          <p>{t.about.intro}</p>
+          <div className="hero-actions">
+            <AppButton href="#/catalog" icon={ShoppingBag}>
+              {t.common.openCatalog}
+            </AppButton>
+            <AppButton href="#/b2b" variant="secondary" icon={Handshake}>
+              {t.common.b2bRequest}
+            </AppButton>
+          </div>
+        </div>
+
+        <div className="about-company-hero__visual" aria-hidden="true">
+          {featuredBrands.map((brand) => (
+            <span className={brand.theme} key={brand.slug}>
+              {brand.name}
+            </span>
+          ))}
+        </div>
+      </header>
+
+      <section className="about-company-stats reveal">
+        {t.about.stats.map(([value, label]) => (
+          <div key={label}>
+            <strong>{value}</strong>
+            <span>{label}</span>
+          </div>
+        ))}
+      </section>
+
+      <section className="about-company-grid reveal">
+        <article className="about-company-main">
+          <span>{t.about.missionLabel}</span>
+          <h2>{t.about.missionTitle}</h2>
+          <p>{t.about.missionText}</p>
+          <ul>
+            {t.about.values.map((value) => (
+              <li key={value}>
+                <CheckCircle2 size={18} aria-hidden="true" />
+                <span>{value}</span>
+              </li>
+            ))}
+          </ul>
+        </article>
+
+        <aside className="about-company-side">
+          <article>
+            <Palette size={22} aria-hidden="true" />
+            <h3>{t.about.portfolioTitle}</h3>
+            <p>{t.about.portfolioText}</p>
+          </article>
+          <article>
+            <PackageCheck size={22} aria-hidden="true" />
+            <h3>{t.about.logisticsTitle}</h3>
+            <p>{t.about.logisticsText}</p>
+          </article>
+        </aside>
+      </section>
+
+      <section className="about-company-brands reveal">
+        <div className="section-heading compact">
+          <span>{t.common.allBrands}</span>
+          <h2>{t.home.assortmentTitle}</h2>
+        </div>
+        <div className="about-brand-strip">
+          {featuredBrands.map((brand) => (
+            <a className={`about-brand-chip ${brand.theme}`} href={`#/brand/${brand.slug}`} key={brand.slug}>
+              <strong>{brand.name}</strong>
+              <span>{brand.mood}</span>
+              <ArrowRight size={17} aria-hidden="true" />
+            </a>
+          ))}
+        </div>
+      </section>
+    </article>
+  );
+}
+
+function FavoritesPage() {
+  const { language, t } = useLocale();
+  const { favoriteIds } = useFavorites();
+  const [catalogProducts, setCatalogProducts] = useState(fallbackCatalogProducts);
+  const [isLoadingCatalog, setIsLoadingCatalog] = useState(true);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    loadBestCatalogProducts().then(({ products }) => {
+      if (isMounted) setCatalogProducts(products);
+    }).finally(() => {
+      if (isMounted) setIsLoadingCatalog(false);
+    });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const favoriteProducts = useMemo(() => {
+    const productById = new Map(catalogProducts.map((product) => [product.id, product]));
+    return favoriteIds.map((id) => productById.get(id)).filter(Boolean);
+  }, [catalogProducts, favoriteIds]);
+
+  return (
+    <>
+      <header className="favorites-hero">
+        <div className="favorites-hero__copy reveal is-visible">
+          <span className="eyebrow">
+            <Heart size={17} aria-hidden="true" />
+            {t.favorites.eyebrow}
+          </span>
+          <h1>{t.favorites.title}</h1>
+          <div className="hero-actions">
+            <AppButton href="#/catalog" icon={ShoppingBag}>
+              {t.favorites.openCatalog}
+            </AppButton>
+          </div>
+        </div>
+
+        <div className="favorites-hero__stats reveal is-visible">
+          <strong>{favoriteProducts.length}</strong>
+          <span>{isLoadingCatalog ? t.favorites.loading : t.favorites.count}</span>
+        </div>
+      </header>
+
+      <section className="favorites-page">
+        {favoriteProducts.length > 0 ? (
+          <div className="product-grid">
+            {favoriteProducts.map((product) => (
+              <CatalogProductCard product={product} key={product.id} />
+            ))}
+          </div>
+        ) : (
+          <div className="catalog-empty reveal is-visible">
+            <Heart size={34} aria-hidden="true" />
+            <h2>{t.favorites.emptyTitle}</h2>
+            <p>{t.favorites.emptyText}</p>
+            <AppButton href="#/catalog" icon={ShoppingBag}>
+              {t.favorites.openCatalog}
+            </AppButton>
+          </div>
+        )}
+      </section>
+    </>
   );
 }
 
@@ -1888,6 +2160,15 @@ function NotFoundPage() {
 export function BeautyHarmonyWebsite() {
   const route = useHashRoute();
   const [language, setLanguage] = useState(() => localStorage.getItem("beauty-harmony-language") || "ru");
+  const [colorMode, setColorMode] = useState(() => localStorage.getItem("beauty-harmony-theme") || "light");
+  const [favoriteIds, setFavoriteIds] = useState(() => {
+    try {
+      const parsed = JSON.parse(localStorage.getItem("beauty-harmony-favorites") || "[]");
+      return Array.isArray(parsed) ? [...new Set(parsed.filter(Boolean))] : [];
+    } catch {
+      return [];
+    }
+  });
   useRevealAnimation(route);
 
   useEffect(() => {
@@ -1895,10 +2176,31 @@ export function BeautyHarmonyWebsite() {
     document.documentElement.lang = language === "uz" ? "uz" : "ru";
   }, [language]);
 
+  useEffect(() => {
+    const nextColorMode = colorMode === "dark" ? "dark" : "light";
+    localStorage.setItem("beauty-harmony-theme", nextColorMode);
+    document.documentElement.dataset.theme = nextColorMode;
+  }, [colorMode]);
+
+  useEffect(() => {
+    localStorage.setItem("beauty-harmony-favorites", JSON.stringify(favoriteIds));
+  }, [favoriteIds]);
+
+  const toggleFavorite = useCallback((productId) => {
+    if (!productId) return;
+    setFavoriteIds((current) => (
+      current.includes(productId)
+        ? current.filter((id) => id !== productId)
+        : [productId, ...current]
+    ));
+  }, []);
+
   const content = useMemo(() => {
     if (route === "/" || route === "") return <HomePage />;
     if (route === "/catalog") return <CatalogPage />;
     if (route === "/brands") return <BrandsSection />;
+    if (route === "/about") return <AboutCompanyPage />;
+    if (route === "/favorites") return <FavoritesPage />;
     if (route === "/b2b") return <B2BPage />;
     if (route === "/admin") return <AdminPage />;
 
@@ -1912,10 +2214,24 @@ export function BeautyHarmonyWebsite() {
   }, [route]);
 
   const localeValue = useMemo(() => ({ language, setLanguage, t: ui[language] || ui.ru }), [language]);
+  const appearanceValue = useMemo(() => ({ colorMode, setColorMode }), [colorMode]);
+  const favoriteSet = useMemo(() => new Set(favoriteIds), [favoriteIds]);
+  const favoritesValue = useMemo(
+    () => ({
+      favoriteIds,
+      isFavorite: (productId) => favoriteSet.has(productId),
+      toggleFavorite,
+    }),
+    [favoriteIds, favoriteSet, toggleFavorite]
+  );
 
   return (
     <LocaleContext.Provider value={localeValue}>
-      <Shell route={route}>{content}</Shell>
+      <AppearanceContext.Provider value={appearanceValue}>
+        <FavoritesContext.Provider value={favoritesValue}>
+          <Shell route={route}>{content}</Shell>
+        </FavoritesContext.Provider>
+      </AppearanceContext.Provider>
     </LocaleContext.Provider>
   );
 }
