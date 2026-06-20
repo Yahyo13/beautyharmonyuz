@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { initializeApp } from "firebase/app";
-import { doc, getFirestore, writeBatch } from "firebase/firestore";
+import { collection, doc, getDocs, getFirestore, writeBatch } from "firebase/firestore";
 import { localCatalogProducts } from "../src/data/catalogData.js";
 
 function loadLocalEnv() {
@@ -52,6 +52,8 @@ async function main() {
   const app = initializeApp(firebaseConfig);
   const db = getFirestore(app);
   const batch = writeBatch(db);
+  const productIds = new Set(localCatalogProducts.map((product) => product.id));
+  const currentSnapshot = await getDocs(collection(db, "products"));
 
   localCatalogProducts.forEach((product, index) => {
     const documentRef = doc(db, "products", product.id);
@@ -60,6 +62,11 @@ async function main() {
       sortOrder: index + 1,
       updatedAt: new Date().toISOString(),
     });
+  });
+
+  currentSnapshot.forEach((snapshot) => {
+    if (productIds.has(snapshot.id)) return;
+    batch.delete(snapshot.ref);
   });
 
   await batch.commit();

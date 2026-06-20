@@ -1,16 +1,18 @@
 import { brands } from "./siteContent.js";
 import { coolMenCatalogProducts } from "./coolMenCatalog.generated.js";
 import { freshJuiceCatalogProducts } from "./freshJuiceCatalog.generated.js";
+import { ladyCaramelCatalogProducts } from "./ladyCaramelCatalog.generated.js";
 import { pinkElephantCatalogProducts } from "./pinkElephantCatalog.generated.js";
+import { theDoctorCatalogProducts } from "./theDoctorCatalog.generated.js";
 
 export const catalogApiUrl = "https://696f7b76a06046ce6186da88.mockapi.io/Api";
 
 export const catalogFallbackSource = {
   name: "Beauty Harmony catalog",
   noteRu:
-    "Локальный каталог собран из брендовых PDF-каталогов Dr.Sante, Fresh Juice, Cool Men и Pink Elephant. Если Firebase или MockAPI временно недоступны, сайт покажет эти карточки автоматически.",
+    "Локальный каталог собран из брендовых PDF-каталогов Dr.Sante, Fresh Juice, Lady Caramel, The Doctor, Cool Men и Pink Elephant. Если Firebase или MockAPI временно недоступны, сайт покажет эти карточки автоматически.",
   noteUz:
-    "Mahalliy katalog Dr.Sante, Fresh Juice, Cool Men va Pink Elephant brend PDF-kataloglari asosida yig'ildi. Firebase yoki MockAPI vaqtincha ishlamasa, sayt shu kartochkalarni avtomatik ko'rsatadi.",
+    "Mahalliy katalog Dr.Sante, Fresh Juice, Lady Caramel, The Doctor, Cool Men va Pink Elephant brend PDF-kataloglari asosida yig'ildi. Firebase yoki MockAPI vaqtincha ishlamasa, sayt shu kartochkalarni avtomatik ko'rsatadi.",
 };
 
 const uzumShopUrl = "https://uzum.uz/uz/shop/beautyh";
@@ -31,6 +33,9 @@ export const catalogCategories = [
   { value: "depilation", label: "Депиляция" },
   { value: "lip-care", label: "Уход за губами" },
   { value: "oral-care", label: "Уход за полостью рта" },
+  { value: "foot-care", label: "Уход за ногами" },
+  { value: "wellness", label: "Лечебно-профилактические средства" },
+  { value: "essential-oils", label: "Эфирные масла" },
   { value: "household", label: "Бытовая химия" },
 ];
 
@@ -50,6 +55,9 @@ const categoryLabels = {
     depilation: "Depilyatsiya",
     "lip-care": "Lab parvarishi",
     "oral-care": "Og'iz bo'shlig'i parvarishi",
+    "foot-care": "Oyoq parvarishi",
+    wellness: "Profilaktik parvarish",
+    "essential-oils": "Efir moylari",
     household: "Maishiy kimyo",
   },
 };
@@ -988,6 +996,8 @@ function buildProduct(spec, index) {
 export const localCatalogProducts = [
   ...productSpecs.map(buildProduct),
   ...freshJuiceCatalogProducts,
+  ...ladyCaramelCatalogProducts,
+  ...theDoctorCatalogProducts,
   ...coolMenCatalogProducts,
   ...pinkElephantCatalogProducts,
 ];
@@ -1011,6 +1021,9 @@ const categoryDescriptions = {
     depilation: "товар для депиляции или ухода после процедуры",
     "lip-care": "компактный уход для защиты и увлажнения губ",
     "oral-care": "средство для ухода за полостью рта",
+    "foot-care": "уход за кожей ног, стопами и локальными зонами",
+    wellness: "наружное лечебно-профилактическое средство",
+    "essential-oils": "эфирное масло или ароматическая композиция",
     household: "товар для чистоты дома, стирки или уборки",
   },
   uz: {
@@ -1026,6 +1039,9 @@ const categoryDescriptions = {
     depilation: "depilyatsiya yoki protseduradan keyingi parvarish tovari",
     "lip-care": "lablarni himoya qilish va namlantirish uchun kompakt parvarish",
     "oral-care": "og'iz bo'shlig'i parvarishi uchun vosita",
+    "foot-care": "oyoq va tovon terisi uchun parvarish",
+    wellness: "tashqi profilaktik parvarish vositasi",
+    "essential-oils": "efir moyi yoki aromatik kompozitsiya",
     household: "uy tozaligi, kir yuvish yoki yig'ishtirish uchun tovar",
   },
 };
@@ -1044,6 +1060,9 @@ const categoryPurposes = {
     depilation: "Депиляция и уход до или после процедуры.",
     "lip-care": "Защита и увлажнение губ.",
     "oral-care": "Полоскание и уход за полостью рта.",
+    "foot-care": "Уход за кожей ног и стопами.",
+    wellness: "Наружный лечебно-профилактический уход.",
+    "essential-oils": "Ароматерапия и обогащение косметических средств.",
     household: "Уборка, стирка или удаление пятен.",
   },
   uz: {
@@ -1059,6 +1078,9 @@ const categoryPurposes = {
     depilation: "Depilyatsiya va protseduradan oldin yoki keyingi parvarish.",
     "lip-care": "Lablarni himoya qilish va namlantirish.",
     "oral-care": "Og'iz bo'shlig'ini chayish va parvarish.",
+    "foot-care": "Oyoq va tovon terisi parvarishi.",
+    wellness: "Tashqi profilaktik parvarish.",
+    "essential-oils": "Aromaterapiya va kosmetik vositalarni boyitish.",
     household: "Tozalash, kir yuvish yoki dog'larni ketkazish.",
   },
 };
