@@ -5,6 +5,8 @@ import {
   ArrowUpRight,
   Building2,
   CheckCircle2,
+  ClipboardList,
+  Edit3,
   Handshake,
   Heart,
   HeartHandshake,
@@ -17,6 +19,7 @@ import {
   Minus,
   Moon,
   PackageCheck,
+  PackagePlus,
   Palette,
   Plus,
   RefreshCw,
@@ -74,7 +77,14 @@ import {
   isVisibleCatalogProduct,
   normalizeCatalogProduct,
 } from "./data/catalogData";
-import { fetchFirebaseCatalogProducts } from "./data/firebaseCatalogApi";
+import { fetchFirebaseCatalogProducts, saveFirebaseCatalogProduct } from "./data/firebaseCatalogApi";
+import {
+  createCustomerOrder,
+  fetchCustomerOrders,
+  getOrderStatusLabel,
+  orderStatuses,
+  updateCustomerOrderStatus,
+} from "./data/customerOrdersApi";
 import {
   completeCustomerEmailLinkSignIn,
   getCustomerProfile,
@@ -179,6 +189,7 @@ const CartContext = React.createContext({
   addToCart: () => { },
   removeFromCart: () => { },
   updateCartQuantity: () => { },
+  clearCart: () => { },
 });
 
 const CustomerContext = React.createContext({
@@ -1746,10 +1757,20 @@ function FavoritesPage() {
 
 function CartPage() {
   const { language, t } = useLocale();
-  const { customerUser } = useCustomer();
-  const { cartItems, cartCount, removeFromCart, updateCartQuantity } = useCart();
+  const { customerUser, customerProfile } = useCustomer();
+  const { cartItems, cartCount, removeFromCart, updateCartQuantity, clearCart } = useCart();
   const [catalogProducts, setCatalogProducts] = useState(fallbackCatalogProducts);
   const [isLoadingCatalog, setIsLoadingCatalog] = useState(true);
+  const [checkoutForm, setCheckoutForm] = useState({
+    name: "",
+    phoneNumber: "+998 ",
+    city: "",
+    address: "",
+    comment: "",
+  });
+  const [checkoutStatus, setCheckoutStatus] = useState("");
+  const [checkoutError, setCheckoutError] = useState("");
+  const [isSubmittingOrder, setIsSubmittingOrder] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -1765,6 +1786,15 @@ function CartPage() {
     };
   }, []);
 
+  useEffect(() => {
+    if (!customerProfile && !customerUser) return;
+
+    setCheckoutForm((current) => ({
+      ...current,
+      name: current.name || getCustomerDisplayName(customerProfile),
+    }));
+  }, [customerProfile, customerUser]);
+
   const cartProducts = useMemo(() => {
     const productById = new Map(catalogProducts.map((product) => [product.id, product]));
     return cartItems
@@ -1775,6 +1805,71 @@ function CartPage() {
   const cartTotal = useMemo(() => {
     return cartProducts.reduce((total, item) => total + (Number(item.product.price) || 0) * item.quantity, 0);
   }, [cartProducts]);
+
+  const handleCheckoutChange = (event) => {
+    const { name, value } = event.target;
+    setCheckoutStatus("");
+    setCheckoutError("");
+    setCheckoutForm((current) => ({
+      ...current,
+      [name]: name === "phoneNumber" ? formatUzbekPhoneNumber(value) : value,
+    }));
+  };
+
+  const handleCheckoutSubmit = async (event) => {
+    event.preventDefault();
+    setCheckoutStatus("");
+    setCheckoutError("");
+
+    if (!cartProducts.length) {
+      setCheckoutError(language === "uz" ? "Savat bo'sh." : "Корзина пустая.");
+      return;
+    }
+
+    if (!checkoutForm.name.trim()) {
+      setCheckoutError(language === "uz" ? "Ismni kiriting." : "Введите имя.");
+      return;
+    }
+
+    if (!isValidUzbekPhoneNumber(checkoutForm.phoneNumber)) {
+      setCheckoutError(language === "uz" ? "+998 bilan to'liq telefon raqamini kiriting." : "Введите полный номер телефона с кодом +998.");
+      return;
+    }
+
+    if (!checkoutForm.city.trim() || !checkoutForm.address.trim()) {
+      setCheckoutError(language === "uz" ? "Shahar va manzilni kiriting." : "Введите город и адрес.");
+      return;
+    }
+
+    setIsSubmittingOrder(true);
+
+    try {
+      const order = await createCustomerOrder({
+        customerUser,
+        customerProfile,
+        form: checkoutForm,
+        items: cartProducts,
+        total: cartTotal,
+        language,
+      });
+      clearCart();
+      setCheckoutStatus(
+        language === "uz"
+          ? `Buyurtma qabul qilindi: #${order.id.slice(0, 8)}.`
+          : `Заказ принят: #${order.id.slice(0, 8)}.`
+      );
+      setCheckoutForm((current) => ({ ...current, comment: "" }));
+    } catch (error) {
+      console.warn("[Cart] order create failed:", error);
+      setCheckoutError(
+        language === "uz"
+          ? "Buyurtmani saqlab bo'lmadi. Firebase sozlamalarini tekshiring."
+          : "Не удалось сохранить заказ. Проверьте настройки Firebase."
+      );
+    } finally {
+      setIsSubmittingOrder(false);
+    }
+  };
 
   return (
     <>
@@ -1837,7 +1932,54 @@ function CartPage() {
             <aside className="cart-summary-panel">
               <span>{t.cart.total}</span>
               <strong>{cartTotal ? formatPrice(cartTotal, language) : language === "uz" ? "Narx Uzumda" : "Цена в Uzum"}</strong>
-              <p>{t.cart.checkoutSoon}</p>
+              <p>{language === "uz" ? "Ma'lumotlarni kiriting, buyurtma admin paneldagi alohida bo'limga tushadi." : "Заполните данные, заказ попадёт в отдельную вкладку админки."}</p>
+
+              <form className="checkout-form" onSubmit={handleCheckoutSubmit}>
+                <label>
+                  {language === "uz" ? "Ism" : "Имя"}
+                  <input name="name" value={checkoutForm.name} onChange={handleCheckoutChange} placeholder={language === "uz" ? "Ismingiz" : "Ваше имя"} required />
+                </label>
+
+                <label>
+                  {language === "uz" ? "Telefon" : "Телефон"}
+                  <input
+                    name="phoneNumber"
+                    value={checkoutForm.phoneNumber}
+                    onChange={handleCheckoutChange}
+                    placeholder="+998 90 123 45 67"
+                    inputMode="tel"
+                    required
+                  />
+                </label>
+
+                <label>
+                  {language === "uz" ? "Shahar" : "Город"}
+                  <input name="city" value={checkoutForm.city} onChange={handleCheckoutChange} placeholder={language === "uz" ? "Toshkent" : "Ташкент"} required />
+                </label>
+
+                <label>
+                  {language === "uz" ? "Manzil" : "Адрес"}
+                  <input name="address" value={checkoutForm.address} onChange={handleCheckoutChange} placeholder={language === "uz" ? "Ko'cha, uy" : "Улица, дом"} required />
+                </label>
+
+                <label>
+                  {language === "uz" ? "Izoh" : "Комментарий"}
+                  <textarea
+                    name="comment"
+                    value={checkoutForm.comment}
+                    onChange={handleCheckoutChange}
+                    placeholder={language === "uz" ? "Yetkazish bo'yicha izoh" : "Комментарий к доставке"}
+                    rows={3}
+                  />
+                </label>
+
+                <AppButton type="submit" icon={ClipboardList} disabled={isSubmittingOrder}>
+                  {isSubmittingOrder ? (language === "uz" ? "Yuborilmoqda..." : "Отправляем...") : language === "uz" ? "Buyurtma berish" : "Оформить заказ"}
+                </AppButton>
+
+                {checkoutStatus && <p className="form-status">{checkoutStatus}</p>}
+                {checkoutError && <p className="form-status is-error">{checkoutError}</p>}
+              </form>
             </aside>
           </>
         ) : (
@@ -2528,6 +2670,698 @@ function AdminPage() {
 }
 
 // Общий блок-ссылка на Uzum Market.
+function createEmptyAdminProductForm() {
+  return {
+    id: "",
+    nameRu: "",
+    nameUz: "",
+    brand: brands[0]?.name || "Dr.Sante",
+    brandSlug: brands[0]?.slug || "dr-sante",
+    category: catalogCategories.find((item) => item.value !== "all")?.value || "body-care",
+    volume: "",
+    price: "",
+    uzumCardPrice: "",
+    image: "",
+    href: uzumShopUrl,
+    purposeRu: "",
+    purposeUz: "",
+    descriptionRu: "",
+    descriptionUz: "",
+    sortOrder: "9999",
+    isVisible: true,
+  };
+}
+
+function productToAdminForm(product = {}) {
+  return {
+    ...createEmptyAdminProductForm(),
+    id: product.id || "",
+    nameRu: product.nameRu || product.name || "",
+    nameUz: product.nameUz || product.nameRu || product.name || "",
+    brand: product.brand || "",
+    brandSlug: product.brandSlug || "",
+    category: product.category || "body-care",
+    volume: product.volume || "",
+    price: product.price || "",
+    uzumCardPrice: product.uzumCardPrice || "",
+    image: product.image || "",
+    href: product.href || uzumShopUrl,
+    purposeRu: product.purposeRu || product.purpose || "",
+    purposeUz: product.purposeUz || "",
+    descriptionRu: product.descriptionRu || product.description || "",
+    descriptionUz: product.descriptionUz || "",
+    sortOrder: product.sortOrder || "9999",
+    isVisible: product.isVisible !== false,
+  };
+}
+
+function isLikelyPartnerRequest(request) {
+  if (!request || typeof request !== "object") return false;
+  if (Array.isArray(request.items) || request.productId || request.price || request.nameRu) return false;
+
+  return Boolean(
+    getRequestField(request, ["name"]) ||
+      getRequestField(request, ["phoneNumber", "phone", "phone number"]) ||
+      getRequestField(request, ["city"]) ||
+      getRequestField(request, ["company"]) ||
+      getRequestField(request, ["type", "format"]) ||
+      getRequestField(request, ["brands"]) ||
+      getRequestField(request, ["comment", "message"])
+  );
+}
+
+function AdminDashboard() {
+  const [session, setSession] = useState(null);
+  const [isCheckingSession, setIsCheckingSession] = useState(true);
+  const [credentials, setCredentials] = useState({ login: "", password: "" });
+  const [loginError, setLoginError] = useState("");
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const [activeTab, setActiveTab] = useState("orders");
+  const [requests, setRequests] = useState([]);
+  const [orders, setOrders] = useState([]);
+  const [adminProducts, setAdminProducts] = useState([]);
+  const [query, setQuery] = useState("");
+  const [typeFilter, setTypeFilter] = useState("all");
+  const [orderStatusFilter, setOrderStatusFilter] = useState("all");
+  const [loadStatus, setLoadStatus] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [updatingOrderId, setUpdatingOrderId] = useState("");
+  const [savingProduct, setSavingProduct] = useState(false);
+  const [productForm, setProductForm] = useState(createEmptyAdminProductForm);
+  const [editingProductId, setEditingProductId] = useState("");
+  const [productStatus, setProductStatus] = useState("");
+
+  useEffect(() => {
+    let isMounted = true;
+
+    getAdminSession()
+      .then((user) => {
+        if (isMounted) setSession(user);
+      })
+      .finally(() => {
+        if (isMounted) setIsCheckingSession(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const loadDashboardData = useCallback(async () => {
+    setIsLoading(true);
+    setLoadStatus("");
+
+    try {
+      const [nextRequests, nextOrders, nextProducts] = await Promise.all([
+        fetchPartnerRequests().catch(() => []),
+        fetchCustomerOrders().catch(() => []),
+        fetchFirebaseCatalogProducts().catch(() => []),
+      ]);
+
+      setRequests(nextRequests.filter(isLikelyPartnerRequest));
+      setOrders(nextOrders);
+      setAdminProducts(nextProducts.map(normalizeCatalogProduct));
+    } catch (error) {
+      console.warn("[Admin] dashboard load failed:", error);
+      setLoadStatus("Не удалось загрузить данные. Проверьте Firebase/API и обновите страницу.");
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (session) loadDashboardData();
+  }, [loadDashboardData, session]);
+
+  const handleCredentialChange = (event) => {
+    const { name, value } = event.target;
+    setCredentials((current) => ({ ...current, [name]: value }));
+  };
+
+  const handleLogin = async (event) => {
+    event.preventDefault();
+    setIsLoggingIn(true);
+    setLoginError("");
+
+    try {
+      const user = await loginAdmin(credentials);
+      setSession(user);
+      setCredentials({ login: "", password: "" });
+    } catch {
+      setLoginError("Неверный логин или пароль.");
+    } finally {
+      setIsLoggingIn(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    await logoutAdmin();
+    setSession(null);
+    setRequests([]);
+    setOrders([]);
+    setAdminProducts([]);
+  };
+
+  const filteredRequests = useMemo(() => {
+    const normalizedQuery = query.trim().toLowerCase();
+
+    return requests.filter((request) => {
+      const requestType = getRequestField(request, ["type", "format"]);
+      const matchesType = typeFilter === "all" || requestType === typeFilter;
+      const searchableText = [
+        request.id,
+        getRequestField(request, ["name"]),
+        getRequestField(request, ["phoneNumber", "phone", "phone number"]),
+        getRequestField(request, ["city"]),
+        getRequestField(request, ["company"]),
+        requestType,
+        getRequestField(request, ["brands"]),
+        getRequestField(request, ["comment", "message"]),
+      ].join(" ").toLowerCase();
+
+      return matchesType && (!normalizedQuery || searchableText.includes(normalizedQuery));
+    });
+  }, [query, requests, typeFilter]);
+
+  const filteredOrders = useMemo(() => {
+    const normalizedQuery = query.trim().toLowerCase();
+
+    return orders.filter((order) => {
+      const matchesStatus = orderStatusFilter === "all" || order.status === orderStatusFilter;
+      const searchableText = [
+        order.id,
+        order.customerName,
+        order.customerEmail,
+        order.phoneNumber,
+        order.city,
+        order.address,
+        order.comment,
+        ...(order.items || []).flatMap((item) => [item.titleRu, item.titleUz, item.brand]),
+      ].join(" ").toLowerCase();
+
+      return matchesStatus && (!normalizedQuery || searchableText.includes(normalizedQuery));
+    });
+  }, [orders, orderStatusFilter, query]);
+
+  const filteredAdminProducts = useMemo(() => {
+    const normalizedQuery = query.trim().toLowerCase();
+    if (!normalizedQuery) return adminProducts;
+
+    return adminProducts.filter((product) =>
+      [
+        product.id,
+        product.nameRu,
+        product.nameUz,
+        product.brand,
+        product.brandSlug,
+        product.category,
+        product.volume,
+        product.descriptionRu,
+      ].join(" ").toLowerCase().includes(normalizedQuery)
+    );
+  }, [adminProducts, query]);
+
+  const types = useMemo(() => {
+    const apiTypes = requests.map((request) => getRequestField(request, ["type", "format"])).filter(Boolean);
+    return [...new Set([...partnerRequestTypes, ...apiTypes])];
+  }, [requests]);
+
+  const ordersTotal = useMemo(() => orders.reduce((sum, order) => sum + (Number(order.total) || 0), 0), [orders]);
+
+  const deleteRequest = async (request) => {
+    if (!request?.id) return;
+    if (!window.confirm(`Удалить заявку #${request.id}?`)) return;
+
+    try {
+      await deletePartnerRequest(request.id);
+      setRequests((current) => current.filter((item) => item.id !== request.id));
+    } catch {
+      setLoadStatus("Не удалось удалить заявку.");
+    }
+  };
+
+  const changeOrderStatus = async (orderId, status) => {
+    setUpdatingOrderId(orderId);
+    setLoadStatus("");
+
+    try {
+      const saved = await updateCustomerOrderStatus(orderId, status);
+      setOrders((current) => current.map((order) => (order.id === orderId ? { ...order, ...saved } : order)));
+    } catch (error) {
+      console.warn("[Admin] order status update failed:", error);
+      setLoadStatus("Не удалось обновить статус заказа.");
+    } finally {
+      setUpdatingOrderId("");
+    }
+  };
+
+  const handleProductFormChange = (event) => {
+    const { name, value, type, checked } = event.target;
+    setProductStatus("");
+
+    setProductForm((current) => {
+      if (name === "brandSlug") {
+        const brand = brands.find((item) => item.slug === value);
+        return {
+          ...current,
+          brandSlug: value,
+          brand: brand?.name || current.brand,
+        };
+      }
+
+      return {
+        ...current,
+        [name]: type === "checkbox" ? checked : value,
+      };
+    });
+  };
+
+  const startNewProduct = () => {
+    setEditingProductId("");
+    setProductForm(createEmptyAdminProductForm());
+    setProductStatus("");
+    setActiveTab("products");
+  };
+
+  const editProduct = (product) => {
+    setEditingProductId(product.id);
+    setProductForm(productToAdminForm(product));
+    setProductStatus("");
+    setActiveTab("products");
+  };
+
+  const saveProduct = async (event) => {
+    event.preventDefault();
+    setSavingProduct(true);
+    setProductStatus("");
+
+    try {
+      const savedProduct = await saveFirebaseCatalogProduct(productForm);
+      const normalized = normalizeCatalogProduct(savedProduct);
+      setAdminProducts((current) => {
+        const exists = current.some((item) => item.id === normalized.id);
+        return exists
+          ? current.map((item) => (item.id === normalized.id ? normalized : item))
+          : [normalized, ...current];
+      });
+      setEditingProductId(normalized.id);
+      setProductForm(productToAdminForm(normalized));
+      setProductStatus("Товар сохранён в Firebase.");
+    } catch (error) {
+      console.warn("[Admin] product save failed:", error);
+      setProductStatus("Не удалось сохранить товар. Проверьте правила Firestore.");
+    } finally {
+      setSavingProduct(false);
+    }
+  };
+
+  if (isCheckingSession) {
+    return (
+      <section className="admin-login-page">
+        <div className="admin-empty">
+          <RefreshCw size={32} aria-hidden="true" />
+          <h2>Проверяем сессию</h2>
+        </div>
+      </section>
+    );
+  }
+
+  if (!session) {
+    return (
+      <section className="admin-login-page">
+        <form className="admin-login-card" onSubmit={handleLogin}>
+          <span>
+            <Lock size={18} aria-hidden="true" />
+            Admin
+          </span>
+          <h2>Вход в админ-панель</h2>
+          <p>После входа доступны B2B заявки, заказы из корзины и управление товарами Firebase.</p>
+
+          <label>
+            Логин
+            <input name="login" value={credentials.login} onChange={handleCredentialChange} autoComplete="username" required />
+          </label>
+
+          <label>
+            Пароль
+            <input name="password" type="password" value={credentials.password} onChange={handleCredentialChange} autoComplete="current-password" required />
+          </label>
+
+          <AppButton type="submit" icon={ShieldCheck} disabled={isLoggingIn}>
+            {isLoggingIn ? "Проверяем..." : "Войти"}
+          </AppButton>
+
+          {loginError && <p className="admin-error">{loginError}</p>}
+        </form>
+      </section>
+    );
+  }
+
+  return (
+    <section className="admin-page">
+      <header className="admin-header">
+        <div>
+          <span className="eyebrow">
+            <ShieldCheck size={17} aria-hidden="true" />
+            Admin
+          </span>
+          <h1>{activeTab === "orders" ? "Заказы" : activeTab === "products" ? "Товары" : "B2B заявки"}</h1>
+          <p>B2B заявки, заказы из корзины и каталог товаров теперь разделены по вкладкам.</p>
+        </div>
+
+        <div className="admin-actions">
+          <AppButton variant="secondary" icon={RefreshCw} onClick={loadDashboardData} disabled={isLoading}>
+            {isLoading ? "Загрузка..." : "Обновить"}
+          </AppButton>
+          <AppButton variant="ghost" icon={LogOut} onClick={handleLogout}>
+            Выйти
+          </AppButton>
+        </div>
+      </header>
+
+      <div className="admin-tabs" role="tablist" aria-label="Разделы админки">
+        <button className={activeTab === "orders" ? "is-active" : ""} type="button" onClick={() => setActiveTab("orders")}>
+          <ClipboardList size={17} aria-hidden="true" /> Заказы
+        </button>
+        <button className={activeTab === "requests" ? "is-active" : ""} type="button" onClick={() => setActiveTab("requests")}>
+          <Handshake size={17} aria-hidden="true" /> B2B
+        </button>
+        <button className={activeTab === "products" ? "is-active" : ""} type="button" onClick={() => setActiveTab("products")}>
+          <PackagePlus size={17} aria-hidden="true" /> Товары
+        </button>
+      </div>
+
+      <div className="admin-stats">
+        <div>
+          <strong>{orders.length}</strong>
+          <span>заказов</span>
+        </div>
+        <div>
+          <strong>{ordersTotal ? formatPrice(ordersTotal, "ru") : "0 сум"}</strong>
+          <span>сумма заказов</span>
+        </div>
+        <div>
+          <strong>{adminProducts.length}</strong>
+          <span>товаров в Firebase</span>
+        </div>
+      </div>
+
+      <div className="admin-toolbar admin-toolbar--wide">
+        <label>
+          Поиск
+          <span>
+            <Search size={18} aria-hidden="true" />
+            <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Имя, телефон, товар, бренд или id" />
+          </span>
+        </label>
+
+        {activeTab === "requests" && (
+          <label>
+            Тип заявки
+            <select value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)}>
+              <option value="all">Все типы</option>
+              {types.map((type) => (
+                <option value={type} key={type}>
+                  {type}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+
+        {activeTab === "orders" && (
+          <label>
+            Статус
+            <select value={orderStatusFilter} onChange={(event) => setOrderStatusFilter(event.target.value)}>
+              <option value="all">Все статусы</option>
+              {orderStatuses.map((status) => (
+                <option value={status.value} key={status.value}>
+                  {status.labelRu}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+
+        {activeTab === "products" && (
+          <button className="admin-new-product" type="button" onClick={startNewProduct}>
+            <PackagePlus size={18} aria-hidden="true" />
+            Новый товар
+          </button>
+        )}
+      </div>
+
+      {loadStatus && <p className="admin-error">{loadStatus}</p>}
+
+      {activeTab === "orders" && (
+        <div className="admin-request-grid admin-order-grid">
+          {filteredOrders.length > 0 ? (
+            filteredOrders.map((order) => (
+              <article className="admin-request-card admin-order-card" key={order.id}>
+                <div className="admin-request-card__top">
+                  <span>#{order.id.slice(0, 8)}</span>
+                  <strong>{getOrderStatusLabel(order.status, "ru")}</strong>
+                </div>
+
+                <h2>{order.customerName || "Покупатель без имени"}</h2>
+                <dl>
+                  <div>
+                    <dt>Телефон</dt>
+                    <dd>{order.phoneNumber || "Не указан"}</dd>
+                  </div>
+                  <div>
+                    <dt>Сумма</dt>
+                    <dd>{formatPrice(order.total, "ru")}</dd>
+                  </div>
+                  <div>
+                    <dt>Город</dt>
+                    <dd>{order.city || "Не указан"}</dd>
+                  </div>
+                  <div>
+                    <dt>Адрес</dt>
+                    <dd>{order.address || "Не указан"}</dd>
+                  </div>
+                </dl>
+
+                <div className="admin-order-items">
+                  {(order.items || []).map((item) => (
+                    <div key={`${order.id}-${item.productId}`}>
+                      <span>{item.quantity} x</span>
+                      <p>{item.titleRu || item.titleUz || item.productId}</p>
+                      <b>{formatPrice(item.subtotal, "ru")}</b>
+                    </div>
+                  ))}
+                </div>
+
+                {order.comment && <p>{order.comment}</p>}
+
+                <div className="admin-request-card__footer">
+                  <small>{formatRequestDate(order.createdAtIso)}</small>
+                  <select
+                    className="admin-status-select"
+                    value={order.status || "new"}
+                    onChange={(event) => changeOrderStatus(order.id, event.target.value)}
+                    disabled={updatingOrderId === order.id}
+                  >
+                    {orderStatuses.map((status) => (
+                      <option value={status.value} key={status.value}>
+                        {status.labelRu}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </article>
+            ))
+          ) : (
+            <div className="admin-empty">
+              <ClipboardList size={32} aria-hidden="true" />
+              <h2>Заказы не найдены</h2>
+              <p>Когда покупатель оформит корзину, заказ появится здесь.</p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {activeTab === "requests" && (
+        <div className="admin-request-grid">
+          {filteredRequests.length > 0 ? (
+            filteredRequests.map((request) => {
+              const phoneNumber = getRequestField(request, ["phoneNumber", "phone", "phone number"]);
+              const comment = getRequestField(request, ["comment", "message"]);
+              const requestType = getRequestField(request, ["type", "format"]);
+
+              return (
+                <article className="admin-request-card" key={request.id || `${request.name}-${request.createdAt}`}>
+                  <div className="admin-request-card__top">
+                    <span>#{request.id || "без id"}</span>
+                    <strong>{requestType || "Без типа"}</strong>
+                  </div>
+                  <h2>{getRequestField(request, ["name"]) || "Без имени"}</h2>
+                  <dl>
+                    <div>
+                      <dt>Телефон</dt>
+                      <dd>{phoneNumber || "Не указан"}</dd>
+                    </div>
+                    <div>
+                      <dt>Город</dt>
+                      <dd>{getRequestField(request, ["city"]) || "Не указан"}</dd>
+                    </div>
+                    <div>
+                      <dt>Компания</dt>
+                      <dd>{getRequestField(request, ["company"]) || "Не указана"}</dd>
+                    </div>
+                    <div>
+                      <dt>Бренды</dt>
+                      <dd>{getRequestField(request, ["brands"]) || "Не указаны"}</dd>
+                    </div>
+                  </dl>
+                  {comment && <p>{comment}</p>}
+                  <div className="admin-request-card__footer">
+                    <small>{formatRequestDate(request.createdAt)}</small>
+                    <button className="admin-delete-button" type="button" onClick={() => deleteRequest(request)} disabled={!request.id}>
+                      <Trash2 size={17} aria-hidden="true" />
+                      <span>Удалить</span>
+                    </button>
+                  </div>
+                </article>
+              );
+            })
+          ) : (
+            <div className="admin-empty">
+              <Search size={32} aria-hidden="true" />
+              <h2>B2B заявки не найдены</h2>
+              <p>Товары из корзины здесь больше не отображаются.</p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {activeTab === "products" && (
+        <div className="admin-products-layout">
+          <form className="admin-product-form" onSubmit={saveProduct}>
+            <div className="admin-product-form__head">
+              <span>{editingProductId ? "Редактирование товара" : "Новый товар"}</span>
+              <strong>{editingProductId || "ID создастся автоматически"}</strong>
+            </div>
+
+            <label>
+              ID товара
+              <input name="id" value={productForm.id} onChange={handleProductFormChange} placeholder="dr-sante-new-product" />
+            </label>
+
+            <div className="admin-product-form__grid">
+              <label>
+                Название RU
+                <input name="nameRu" value={productForm.nameRu} onChange={handleProductFormChange} required />
+              </label>
+              <label>
+                Название UZ
+                <input name="nameUz" value={productForm.nameUz} onChange={handleProductFormChange} />
+              </label>
+            </div>
+
+            <div className="admin-product-form__grid">
+              <label>
+                Бренд
+                <select name="brandSlug" value={productForm.brandSlug} onChange={handleProductFormChange}>
+                  {brands.map((brand) => (
+                    <option value={brand.slug} key={brand.slug}>
+                      {brand.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                Категория
+                <select name="category" value={productForm.category} onChange={handleProductFormChange}>
+                  {catalogCategories.filter((item) => item.value !== "all").map((item) => (
+                    <option value={item.value} key={item.value}>
+                      {getCategoryLabel(item.value, "ru")}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+
+            <div className="admin-product-form__grid">
+              <label>
+                Объём
+                <input name="volume" value={productForm.volume} onChange={handleProductFormChange} placeholder="250 мл" />
+              </label>
+              <label>
+                Цена, сум
+                <input name="price" value={productForm.price} onChange={handleProductFormChange} inputMode="numeric" placeholder="25000" />
+              </label>
+            </div>
+
+            <label>
+              Картинка
+              <input name="image" value={productForm.image} onChange={handleProductFormChange} placeholder="products/dr-sante-clean/product.webp или https://..." />
+            </label>
+
+            <label>
+              Ссылка
+              <input name="href" value={productForm.href} onChange={handleProductFormChange} placeholder={uzumShopUrl} />
+            </label>
+
+            <label>
+              Назначение RU
+              <input name="purposeRu" value={productForm.purposeRu} onChange={handleProductFormChange} />
+            </label>
+            <label>
+              Назначение UZ
+              <input name="purposeUz" value={productForm.purposeUz} onChange={handleProductFormChange} />
+            </label>
+
+            <label>
+              Описание RU
+              <textarea name="descriptionRu" value={productForm.descriptionRu} onChange={handleProductFormChange} rows={4} />
+            </label>
+            <label>
+              Описание UZ
+              <textarea name="descriptionUz" value={productForm.descriptionUz} onChange={handleProductFormChange} rows={4} />
+            </label>
+
+            <div className="admin-product-form__grid">
+              <label>
+                Sort order
+                <input name="sortOrder" value={productForm.sortOrder} onChange={handleProductFormChange} inputMode="numeric" />
+              </label>
+              <label className="admin-product-checkbox">
+                <input name="isVisible" type="checkbox" checked={productForm.isVisible} onChange={handleProductFormChange} />
+                Показывать на сайте
+              </label>
+            </div>
+
+            <AppButton type="submit" icon={editingProductId ? Edit3 : PackagePlus} disabled={savingProduct}>
+              {savingProduct ? "Сохраняем..." : editingProductId ? "Сохранить изменения" : "Добавить товар"}
+            </AppButton>
+
+            {productStatus && <p className={`form-status${productStatus.includes("Не удалось") ? " is-error" : ""}`}>{productStatus}</p>}
+          </form>
+
+          <div className="admin-products-list">
+            {filteredAdminProducts.map((product) => (
+              <article className="admin-product-row" key={product.id}>
+                <img src={product.image} alt={getProductTitle(product, "ru")} loading="lazy" />
+                <div>
+                  <span>{product.brand}</span>
+                  <h2>{getProductTitle(product, "ru")}</h2>
+                  <p>{getCategoryLabel(product.category, "ru")} · {product.volume || "без объёма"} · {formatPrice(product.price, "ru")}</p>
+                </div>
+                <button type="button" onClick={() => editProduct(product)}>
+                  <Edit3 size={16} aria-hidden="true" />
+                  Изменить
+                </button>
+              </article>
+            ))}
+          </div>
+        </div>
+      )}
+    </section>
+  );
+}
+
 function MarketCta() {
   const { t } = useLocale();
 
@@ -2782,6 +3616,10 @@ export function BeautyHarmonyWebsite() {
     });
   }, []);
 
+  const clearCart = useCallback(() => {
+    setCartItems([]);
+  }, []);
+
   const sendCustomerSignInLink = useCallback(async (email, nextLanguage) => {
     setIsCustomerLoading(true);
     setCustomerError("");
@@ -2841,7 +3679,7 @@ export function BeautyHarmonyWebsite() {
     if (route === "/favorites") return <FavoritesPage />;
     if (route === "/cart") return <CartPage />;
     if (route === "/b2b") return <B2BPage />;
-    if (route === "/admin") return <AdminPage />;
+    if (route === "/admin") return <AdminDashboard />;
 
     const brandMatch = route.match(/^\/brand\/(.+)$/);
     if (brandMatch) {
@@ -2871,8 +3709,9 @@ export function BeautyHarmonyWebsite() {
       addToCart,
       removeFromCart,
       updateCartQuantity,
+      clearCart,
     }),
-    [addToCart, cartCount, cartItems, removeFromCart, updateCartQuantity]
+    [addToCart, cartCount, cartItems, clearCart, removeFromCart, updateCartQuantity]
   );
   const customerValue = useMemo(
     () => ({

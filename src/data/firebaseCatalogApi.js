@@ -72,3 +72,58 @@ export async function fetchFirebaseCatalogProducts() {
     ...document.data(),
   }));
 }
+
+function normalizeAdminNumber(value) {
+  if (typeof value === "number") return Number.isFinite(value) && value > 0 ? value : null;
+  if (!value) return null;
+  const parsed = Number(String(value).replace(/[^\d]/g, ""));
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+}
+
+function normalizeAdminText(value = "") {
+  return String(value || "").trim();
+}
+
+function createProductDocumentId(product) {
+  const source = product.id || product.sku || product.nameRu || product.name || product.nameUz || `product-${Date.now()}`;
+  const slug = String(source)
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 90);
+
+  return slug || `product-${Date.now()}`;
+}
+
+export async function saveFirebaseCatalogProduct(product) {
+  const db = await getFirestoreDb();
+  if (!db) throw new Error("FIREBASE_NOT_CONFIGURED");
+
+  const productId = createProductDocumentId(product);
+  const payload = {
+    id: productId,
+    name: normalizeAdminText(product.name || product.nameRu),
+    nameRu: normalizeAdminText(product.nameRu || product.name),
+    nameUz: normalizeAdminText(product.nameUz || product.nameRu || product.name),
+    brand: normalizeAdminText(product.brand),
+    brandSlug: normalizeAdminText(product.brandSlug),
+    category: normalizeAdminText(product.category),
+    volume: normalizeAdminText(product.volume),
+    purposeRu: normalizeAdminText(product.purposeRu),
+    purposeUz: normalizeAdminText(product.purposeUz),
+    descriptionRu: normalizeAdminText(product.descriptionRu),
+    descriptionUz: normalizeAdminText(product.descriptionUz),
+    image: normalizeAdminText(product.image),
+    href: normalizeAdminText(product.href),
+    price: normalizeAdminNumber(product.price),
+    uzumCardPrice: normalizeAdminNumber(product.uzumCardPrice),
+    sortOrder: Number.parseInt(product.sortOrder, 10) || 9999,
+    isVisible: product.isVisible !== false,
+    updatedAtIso: new Date().toISOString(),
+    updatedAt: firestoreApi.serverTimestamp(),
+  };
+
+  await firestoreApi.setDoc(firestoreApi.doc(db, "products", productId), payload, { merge: true });
+  return payload;
+}
