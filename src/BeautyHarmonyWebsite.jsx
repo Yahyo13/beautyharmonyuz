@@ -500,7 +500,22 @@ function CustomerPanel({ isOpen, onClose }) {
   const [confirmationResult, setConfirmationResult] = useState(null);
   const [statusText, setStatusText] = useState("");
   const [errorText, setErrorText] = useState("");
+  const recaptchaHostRef = useRef(null);
   const isProfileComplete = isCustomerProfileComplete(customerProfile);
+
+  function createRecaptchaSlot() {
+    const slotId = `customer-recaptcha-container-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    const host = recaptchaHostRef.current;
+
+    if (host) {
+      host.innerHTML = "";
+      const slot = document.createElement("div");
+      slot.id = slotId;
+      host.appendChild(slot);
+    }
+
+    return slotId;
+  }
 
   useEffect(() => {
     if (!isOpen) return;
@@ -544,7 +559,7 @@ function CustomerPanel({ isOpen, onClose }) {
     }
 
     try {
-      const confirmation = await startCustomerSignIn(normalizedPhone, "customer-recaptcha-container", language);
+      const confirmation = await startCustomerSignIn(normalizedPhone, createRecaptchaSlot(), language);
       setConfirmationResult(confirmation);
       setPhoneNumber(formatUzbekPhoneNumber(normalizedPhone));
       setStep("code");
@@ -642,7 +657,7 @@ function CustomerPanel({ isOpen, onClose }) {
                 required
               />
             </label>
-            <div id="customer-recaptcha-container" className="customer-recaptcha" />
+            <div ref={recaptchaHostRef} className="customer-recaptcha" />
             <AppButton type="submit" icon={Send} disabled={isCustomerLoading}>
               {isCustomerLoading ? t.auth.sending : t.auth.sendCode}
             </AppButton>

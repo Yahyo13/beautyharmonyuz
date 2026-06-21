@@ -1,6 +1,7 @@
 import { getFirebaseAuthClient, getFirestoreClient, hasFirebaseConfig } from "./firebaseCatalogApi";
 
 let customerRecaptchaVerifier = null;
+let customerRecaptchaContainerId = "";
 
 export function hasCustomerAuthConfig() {
   return hasFirebaseConfig();
@@ -66,6 +67,31 @@ function createRecaptchaVerifier(authApi, auth, containerId, language) {
   }
 }
 
+function clearRecaptchaContainer(containerId) {
+  if (!containerId || typeof document === "undefined") return;
+
+  const container = document.getElementById(containerId);
+  if (container) {
+    container.innerHTML = "";
+  }
+}
+
+function clearCustomerRecaptchaVerifier(containerId = customerRecaptchaContainerId) {
+  if (customerRecaptchaVerifier) {
+    try {
+      customerRecaptchaVerifier.clear();
+    } catch {
+      // Firebase can throw if the widget was already removed from the DOM.
+    }
+  }
+
+  customerRecaptchaVerifier = null;
+  clearRecaptchaContainer(containerId);
+  if (containerId === customerRecaptchaContainerId) {
+    customerRecaptchaContainerId = "";
+  }
+}
+
 export async function subscribeCustomerAuth(callback) {
   const client = await getFirebaseAuthClient();
   if (!client) {
@@ -83,13 +109,20 @@ export async function sendCustomerPhoneCode(phoneNumber, recaptchaContainerId, l
   const { auth, authApi } = client;
   auth.languageCode = language === "uz" ? "uz" : "ru";
 
-  if (customerRecaptchaVerifier) {
-    customerRecaptchaVerifier.clear();
-    customerRecaptchaVerifier = null;
-  }
+  clearCustomerRecaptchaVerifier();
+  clearRecaptchaContainer(recaptchaContainerId);
 
+  customerRecaptchaContainerId = recaptchaContainerId;
   customerRecaptchaVerifier = createRecaptchaVerifier(authApi, auth, recaptchaContainerId, language);
-  return authApi.signInWithPhoneNumber(auth, normalizeCustomerPhone(phoneNumber), customerRecaptchaVerifier);
+
+  try {
+    return await authApi.signInWithPhoneNumber(auth, normalizeCustomerPhone(phoneNumber), customerRecaptchaVerifier);
+  } catch (error) {
+    if (String(error?.message || error?.code || "").includes("already been rendered")) {
+      clearCustomerRecaptchaVerifier(recaptchaContainerId);
+    }
+    throw error;
+  }
 }
 
 export async function confirmCustomerPhoneCode(confirmationResult, code) {
