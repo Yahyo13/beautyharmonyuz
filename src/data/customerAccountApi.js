@@ -1,6 +1,7 @@
 import { getFirebaseAuthClient, getFirestoreClient, hasFirebaseConfig } from "./firebaseCatalogApi";
 
 const customerEmailLinkStorageKey = "beauty-harmony-email-for-sign-in";
+const minCustomerPasswordLength = 6;
 
 export function hasCustomerAuthConfig() {
   return hasFirebaseConfig();
@@ -14,8 +15,25 @@ export function isCustomerEmailValid(email = "") {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizeCustomerEmail(email));
 }
 
+export function isCustomerPasswordValid(password = "") {
+  return String(password || "").length >= minCustomerPasswordLength;
+}
+
 export function isCustomerProfileComplete(profile) {
   return Boolean(profile?.firstName?.trim() && profile?.lastName?.trim());
+}
+
+export function normalizeCustomerPhoneNumber(phone = "") {
+  const digits = String(phone || "").replace(/\D/g, "");
+  const localDigits = digits.startsWith("998") ? digits.slice(3) : digits;
+  const normalizedLocal = localDigits.slice(0, 9);
+
+  if (normalizedLocal.length !== 9) return String(phone || "").trim();
+  return `+998 ${normalizedLocal.slice(0, 2)} ${normalizedLocal.slice(2, 5)} ${normalizedLocal.slice(5, 7)} ${normalizedLocal.slice(7, 9)}`;
+}
+
+function getPhoneDigits(phone = "") {
+  return String(phone || "").replace(/\D/g, "");
 }
 
 function getEmailLinkContinueUrl() {
@@ -72,6 +90,7 @@ function normalizeCustomerProfile(user, data = {}) {
     displayName,
     favoriteIds: cleanFavoriteIds(data.favoriteIds),
     cartItems: cleanCartItems(data.cartItems),
+    phoneDigits: data.phoneDigits || getPhoneDigits(data.phoneNumber || user.phoneNumber || ""),
   };
 }
 
@@ -132,6 +151,55 @@ export async function completeCustomerEmailLinkSignIn(email) {
   return result;
 }
 
+async function resolveCustomerEmailByIdentifier(identifier) {
+  const normalizedIdentifier = String(identifier || "").trim();
+  if (isCustomerEmailValid(normalizedIdentifier)) return normalizeCustomerEmail(normalizedIdentifier);
+
+  const client = await getFirestoreClient();
+  if (!client) throw new Error("PHONE_LOGIN_REQUIRES_FIRESTORE");
+
+  const { db, firestoreApi } = client;
+  const phoneNumber = normalizeCustomerPhoneNumber(normalizedIdentifier);
+  const phoneDigits = getPhoneDigits(phoneNumber);
+  const usersRef = firestoreApi.collection(db, "users");
+  const queries = [
+    firestoreApi.query(usersRef, firestoreApi.where("phoneDigits", "==", phoneDigits)),
+    firestoreApi.query(usersRef, firestoreApi.where("phoneNumber", "==", phoneNumber)),
+  ];
+
+  for (const usersQuery of queries) {
+    try {
+      const snapshot = await firestoreApi.getDocs(usersQuery);
+      const found = snapshot.docs.map((document) => document.data()).find((data) => isCustomerEmailValid(data.email));
+      if (found?.email) return normalizeCustomerEmail(found.email);
+    } catch {
+      // Try the next lookup shape before failing.
+    }
+  }
+
+  throw new Error("PHONE_EMAIL_NOT_FOUND");
+}
+
+export async function signInCustomerWithPassword(identifier, password) {
+  if (!isCustomerPasswordValid(password)) throw new Error("WEAK_PASSWORD");
+
+  const client = await getFirebaseAuthClient();
+  if (!client) throw new Error("FIREBASE_NOT_CONFIGURED");
+
+  const email = await resolveCustomerEmailByIdentifier(identifier);
+  return client.authApi.signInWithEmailAndPassword(client.auth, email, password);
+}
+
+export async function setCustomerPassword(password) {
+  if (!isCustomerPasswordValid(password)) throw new Error("WEAK_PASSWORD");
+
+  const client = await getFirebaseAuthClient();
+  if (!client?.auth?.currentUser) throw new Error("USER_MISSING");
+
+  await client.authApi.updatePassword(client.auth.currentUser, password);
+  return client.auth.currentUser;
+}
+
 export async function signOutCustomer() {
   const client = await getFirebaseAuthClient();
   if (!client) return;
@@ -156,6 +224,7 @@ export async function getCustomerProfile(user) {
         uid: user.uid,
         email: user.email || "",
         phoneNumber: user.phoneNumber || "",
+        phoneDigits: getPhoneDigits(user.phoneNumber || ""),
         firstName: "",
         lastName: "",
         displayName: "",
@@ -191,8 +260,9 @@ export async function saveCustomerProfile(user, profilePatch) {
     lastName,
     displayName,
     email: user.email || profilePatch.email || "",
-    phoneNumber: user.phoneNumber || profilePatch.phoneNumber || "",
+    phoneNumber: normalizeCustomerPhoneNumber(user.phoneNumber || profilePatch.phoneNumber || ""),
   };
+  cleanPatch.phoneDigits = getPhoneDigits(cleanPatch.phoneNumber);
 
   if (!client) return normalizeCustomerProfile(user, cleanPatch);
 

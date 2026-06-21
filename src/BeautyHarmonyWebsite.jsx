@@ -100,10 +100,14 @@ import {
   hasCustomerAuthConfig,
   isCustomerEmailSignInLink,
   isCustomerEmailValid,
+  isCustomerPasswordValid,
   isCustomerProfileComplete,
+  normalizeCustomerPhoneNumber,
   saveCustomerCollections,
   saveCustomerProfile,
   sendCustomerEmailLink,
+  setCustomerPassword,
+  signInCustomerWithPassword,
   signOutCustomer,
   subscribeCustomerAuth,
 } from "./data/customerAccountApi";
@@ -494,10 +498,14 @@ function getCustomerAuthErrorMessage(error, language) {
     if (details.includes("INVALID_EMAIL") || details.includes("invalid-email")) return "Email manzil noto'g'ri yozilgan.";
     if (details.includes("EMAIL_LINK_EMAIL_MISSING")) return "Havola boshqa brauzerda ochilgan. Qayta email kiriting va yangi havola oling.";
     if (details.includes("EMAIL_LINK_MISSING")) return "Kirish havolasi topilmadi yoki eskirgan.";
+    if (details.includes("WEAK_PASSWORD") || details.includes("weak-password")) return "Parol kamida 6 ta belgidan iborat bo'lishi kerak.";
+    if (details.includes("PHONE_EMAIL_NOT_FOUND")) return "Bu telefon raqamiga bog'langan profil topilmadi.";
+    if (details.includes("PHONE_LOGIN_REQUIRES_FIRESTORE")) return "Telefon orqali kirish uchun Firebase Firestore sozlamasi kerak.";
+    if (details.includes("invalid-credential") || details.includes("wrong-password") || details.includes("user-not-found")) return "Email/telefon yoki parol noto'g'ri.";
     if (details.includes("expired-action-code") || details.includes("invalid-action-code")) return "Email havola eskirgan. Yangi havola oling.";
     if (details.includes("too-many-requests")) return "Juda ko'p urinish bo'ldi. Keyinroq urinib ko'ring.";
     if (details.includes("unauthorized-domain") || details.includes("app-not-authorized")) return "Bu domen Firebase Auth Authorized domains ro'yxatiga qo'shilmagan.";
-    if (details.includes("operation-not-allowed")) return "Firebase ichida Email link sign-in yoqilmagan. Authentication > Sign-in method > Email/Password ichida Email link ni yoqing.";
+    if (details.includes("operation-not-allowed")) return "Firebase ichida Email/Password va Email link sign-in yoqilgan bo'lishi kerak.";
     if (details.includes("network-request-failed")) return "Internet bilan ulanishda muammo bor.";
     return `Kirish amalga oshmadi. Firebase kodi: ${details || "noma'lum"}`;
   }
@@ -506,10 +514,14 @@ function getCustomerAuthErrorMessage(error, language) {
   if (details.includes("INVALID_EMAIL") || details.includes("invalid-email")) return "Email указан в неверном формате.";
   if (details.includes("EMAIL_LINK_EMAIL_MISSING")) return "Ссылка открыта в другом браузере. Введите email заново и получите новую ссылку.";
   if (details.includes("EMAIL_LINK_MISSING")) return "Ссылка для входа не найдена или устарела.";
+  if (details.includes("WEAK_PASSWORD") || details.includes("weak-password")) return "Пароль должен быть минимум 6 символов.";
+  if (details.includes("PHONE_EMAIL_NOT_FOUND")) return "Профиль с таким номером телефона не найден.";
+  if (details.includes("PHONE_LOGIN_REQUIRES_FIRESTORE")) return "Для входа по телефону нужен настроенный Firebase Firestore.";
+  if (details.includes("invalid-credential") || details.includes("wrong-password") || details.includes("user-not-found")) return "Email/телефон или пароль указан неверно.";
   if (details.includes("expired-action-code") || details.includes("invalid-action-code")) return "Email-ссылка устарела. Получите новую ссылку.";
   if (details.includes("too-many-requests")) return "Слишком много попыток. Попробуйте позже.";
   if (details.includes("unauthorized-domain") || details.includes("app-not-authorized")) return "Этот домен не добавлен в Firebase Auth Authorized domains.";
-  if (details.includes("operation-not-allowed")) return "В Firebase не включен Email link sign-in. Откройте Authentication > Sign-in method > Email/Password и включите Email link.";
+  if (details.includes("operation-not-allowed")) return "В Firebase должны быть включены Email/Password и Email link sign-in.";
   if (details.includes("network-request-failed")) return "Проблема с интернет-соединением.";
   return `Не удалось войти. Код Firebase: ${details || "неизвестно"}`;
 }
@@ -523,17 +535,36 @@ function CustomerPanel({ isOpen, onClose }) {
     isCustomerReady,
     isCustomerLoading,
     completeCustomerSignInLink,
+    signInCustomerPassword,
+    setCustomerAccountPassword,
     sendCustomerSignInLink,
     updateCustomerProfile,
     logoutCustomer,
   } = useCustomer();
-  const [emailAddress, setEmailAddress] = useState("");
+  const [authMode, setAuthMode] = useState("login");
+  const [registerEmail, setRegisterEmail] = useState("");
+  const [loginIdentifier, setLoginIdentifier] = useState("");
+  const [loginPassword, setLoginPassword] = useState("");
+  const [accountPassword, setAccountPassword] = useState("");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
-  const [step, setStep] = useState("email");
+  const [phoneNumber, setPhoneNumber] = useState("+998 ");
+  const [step, setStep] = useState("auth");
   const [statusText, setStatusText] = useState("");
   const [errorText, setErrorText] = useState("");
   const isProfileComplete = isCustomerProfileComplete(customerProfile);
+  const isRegisterMode = authMode === "register";
+  const isNewProfileStep = customerUser && step === "details" && !isProfileComplete;
+  const panelTitle = customerUser
+    ? t.auth.profileTitle
+    : isRegisterMode
+      ? (language === "uz" ? "Ro'yxatdan o'tish" : "Регистрация")
+      : (language === "uz" ? "Kirish" : "Вход");
+  const panelText = customerUser
+    ? (isNewProfileStep ? t.auth.newUserText : t.auth.oldUserText)
+    : isRegisterMode
+      ? (language === "uz" ? "Emailingizni tasdiqlang, keyin profil va parolni to'ldiring." : "Подтвердите email по ссылке, затем заполните профиль и пароль.")
+      : (language === "uz" ? "Email yoki telefon raqamini va parolni kiriting." : "Введите email или номер телефона и пароль.");
 
   useEffect(() => {
     if (!isOpen) return;
@@ -542,13 +573,23 @@ function CustomerPanel({ isOpen, onClose }) {
     setStatusText("");
     if (customerUser) {
       setStep(isProfileComplete ? "profile" : "details");
-      setEmailAddress(customerUser.email || customerProfile?.email || "");
+      setRegisterEmail(customerUser.email || customerProfile?.email || "");
+      setLoginIdentifier(customerUser.email || customerProfile?.email || "");
       setFirstName(customerProfile?.firstName || "");
       setLastName(customerProfile?.lastName || "");
+      setPhoneNumber(customerProfile?.phoneNumber || customerUser.phoneNumber || "+998 ");
+      setAccountPassword("");
     } else {
-      setStep("email");
+      setStep("auth");
       setFirstName("");
       setLastName("");
+      setPhoneNumber("+998 ");
+      setLoginPassword("");
+      setAccountPassword("");
+
+      isCustomerEmailSignInLink().then((hasLink) => {
+        if (hasLink) setAuthMode("register");
+      }).catch(() => {});
     }
   }, [customerProfile, customerUser, isOpen, isProfileComplete]);
 
@@ -558,7 +599,12 @@ function CustomerPanel({ isOpen, onClose }) {
     if (!isCustomerLoading) onClose();
   };
 
-  async function handleSendLink(event) {
+  const isFullUzbekPhone = (value) => {
+    const digits = String(value || "").replace(/\D/g, "");
+    return digits.length === 12 && digits.startsWith("998");
+  };
+
+  async function handleRegisterLink(event) {
     event.preventDefault();
     setErrorText("");
     setStatusText("");
@@ -568,7 +614,7 @@ function CustomerPanel({ isOpen, onClose }) {
       return;
     }
 
-    if (!isCustomerEmailValid(emailAddress)) {
+    if (!isCustomerEmailValid(registerEmail)) {
       setErrorText(t.auth.invalidEmail);
       return;
     }
@@ -576,16 +622,50 @@ function CustomerPanel({ isOpen, onClose }) {
     try {
       const hasOpenEmailLink = await isCustomerEmailSignInLink().catch(() => false);
       if (hasOpenEmailLink) {
-        const profile = await completeCustomerSignInLink(emailAddress);
+        const profile = await completeCustomerSignInLink(registerEmail);
         setFirstName(profile?.firstName || "");
         setLastName(profile?.lastName || "");
+        setPhoneNumber(profile?.phoneNumber || "+998 ");
         setStatusText(t.auth.oldUserText);
         setStep(isCustomerProfileComplete(profile) ? "profile" : "details");
         return;
       }
 
-      await sendCustomerSignInLink(emailAddress, language);
+      await sendCustomerSignInLink(registerEmail, language);
       setStatusText(t.auth.linkSent);
+    } catch (error) {
+      setErrorText(getCustomerAuthErrorMessage(error, language));
+    }
+  }
+
+  async function handlePasswordLogin(event) {
+    event.preventDefault();
+    setErrorText("");
+    setStatusText("");
+
+    if (!hasCustomerAuthConfig()) {
+      setErrorText(t.auth.authUnavailable);
+      return;
+    }
+
+    if (!loginIdentifier.trim()) {
+      setErrorText(language === "uz" ? "Email yoki telefon raqamini kiriting." : "Введите email или номер телефона.");
+      return;
+    }
+
+    if (!isCustomerPasswordValid(loginPassword)) {
+      setErrorText(language === "uz" ? "Parol kamida 6 ta belgidan iborat bo'lishi kerak." : "Пароль должен быть минимум 6 символов.");
+      return;
+    }
+
+    try {
+      const profile = await signInCustomerPassword(loginIdentifier, loginPassword);
+      setFirstName(profile?.firstName || "");
+      setLastName(profile?.lastName || "");
+      setPhoneNumber(profile?.phoneNumber || "+998 ");
+      setLoginPassword("");
+      setStatusText(t.auth.oldUserText);
+      setStep(isCustomerProfileComplete(profile) ? "profile" : "details");
     } catch (error) {
       setErrorText(getCustomerAuthErrorMessage(error, language));
     }
@@ -601,8 +681,20 @@ function CustomerPanel({ isOpen, onClose }) {
       return;
     }
 
+    if (!isFullUzbekPhone(phoneNumber)) {
+      setErrorText(t.auth.invalidPhone);
+      return;
+    }
+
+    if (isNewProfileStep && !isCustomerPasswordValid(accountPassword)) {
+      setErrorText(language === "uz" ? "Parol kamida 6 ta belgidan iborat bo'lishi kerak." : "Пароль должен быть минимум 6 символов.");
+      return;
+    }
+
     try {
-      await updateCustomerProfile({ firstName, lastName });
+      if (isNewProfileStep) await setCustomerAccountPassword(accountPassword);
+      await updateCustomerProfile({ firstName, lastName, phoneNumber: normalizeCustomerPhoneNumber(phoneNumber) });
+      setAccountPassword("");
       setStatusText(t.auth.oldUserText);
       setStep("profile");
     } catch (error) {
@@ -614,9 +706,12 @@ function CustomerPanel({ isOpen, onClose }) {
     setErrorText("");
     try {
       await logoutCustomer();
-      setStep("email");
+      setStep("auth");
       setStatusText("");
-      setEmailAddress("");
+      setRegisterEmail("");
+      setLoginIdentifier("");
+      setLoginPassword("");
+      setAccountPassword("");
     } catch (error) {
       setErrorText(getCustomerAuthErrorMessage(error, language));
     }
@@ -631,20 +726,31 @@ function CustomerPanel({ isOpen, onClose }) {
         </button>
 
         <div className="customer-modal__icon">
-          {customerUser ? <UserCheck size={27} aria-hidden="true" /> : <Mail size={27} aria-hidden="true" />}
+          {customerUser ? <UserCheck size={27} aria-hidden="true" /> : isRegisterMode ? <Mail size={27} aria-hidden="true" /> : <Lock size={27} aria-hidden="true" />}
         </div>
-        <h2 id="customer-modal-title">{customerUser ? t.auth.profileTitle : t.auth.title}</h2>
-        <p>{customerUser ? t.auth.oldUserText : t.auth.emailNotice}</p>
+        <h2 id="customer-modal-title">{panelTitle}</h2>
+        <p>{panelText}</p>
 
         {!isCustomerReady && <p className="form-status">{language === "uz" ? "Profil tekshirilmoqda..." : "Проверяем профиль..."}</p>}
 
-        {!customerUser && step === "email" && (
-          <form className="customer-form" onSubmit={handleSendLink}>
+        {!customerUser && (
+          <div className="auth-mode-tabs" role="tablist" aria-label={language === "uz" ? "Kirish turi" : "Тип входа"}>
+            <button className={isRegisterMode ? "is-active" : ""} type="button" onClick={() => setAuthMode("register")}>
+              {language === "uz" ? "Ro'yxatdan o'tish" : "Регистрация"}
+            </button>
+            <button className={!isRegisterMode ? "is-active" : ""} type="button" onClick={() => setAuthMode("login")}>
+              {language === "uz" ? "Kirish" : "Вход"}
+            </button>
+          </div>
+        )}
+
+        {!customerUser && isRegisterMode && (
+          <form className="customer-form" onSubmit={handleRegisterLink}>
             <label>
               {t.auth.email}
               <input
-                value={emailAddress}
-                onChange={(event) => setEmailAddress(event.target.value)}
+                value={registerEmail}
+                onChange={(event) => setRegisterEmail(event.target.value)}
                 placeholder={t.auth.emailPlaceholder}
                 inputMode="email"
                 autoComplete="email"
@@ -657,25 +763,33 @@ function CustomerPanel({ isOpen, onClose }) {
           </form>
         )}
 
-        {false && (
-          <form className="customer-form" onSubmit={handleConfirmCode}>
+        {!customerUser && !isRegisterMode && (
+          <form className="customer-form" onSubmit={handlePasswordLogin}>
             <label>
-              {t.auth.code}
+              {language === "uz" ? "Email yoki telefon" : "Email или телефон"}
               <input
-                value={code}
-                onChange={(event) => setCode(event.target.value.replace(/\D/g, "").slice(0, 6))}
-                placeholder={t.auth.codePlaceholder}
-                inputMode="numeric"
-                autoComplete="one-time-code"
+                value={loginIdentifier}
+                onChange={(event) => setLoginIdentifier(event.target.value)}
+                placeholder={language === "uz" ? "name@example.com yoki +998..." : "name@example.com или +998..."}
+                inputMode="email"
+                autoComplete="username"
                 required
               />
             </label>
-            <AppButton type="submit" icon={ShieldCheck} disabled={isCustomerLoading}>
-              {isCustomerLoading ? t.auth.confirming : t.auth.confirmCode}
+            <label>
+              {language === "uz" ? "Parol" : "Пароль"}
+              <input
+                value={loginPassword}
+                onChange={(event) => setLoginPassword(event.target.value)}
+                placeholder={language === "uz" ? "Kamida 6 belgi" : "Минимум 6 символов"}
+                type="password"
+                autoComplete="current-password"
+                required
+              />
+            </label>
+            <AppButton type="submit" icon={Lock} disabled={isCustomerLoading}>
+              {isCustomerLoading ? t.auth.confirming : (language === "uz" ? "Kirish" : "Войти")}
             </AppButton>
-            <button className="text-button" type="button" onClick={() => setStep("phone")} disabled={isCustomerLoading}>
-              {language === "uz" ? "Raqamni o'zgartirish" : "Изменить номер"}
-            </button>
           </form>
         )}
 
@@ -683,7 +797,7 @@ function CustomerPanel({ isOpen, onClose }) {
           <form className="customer-form" onSubmit={handleSaveProfile}>
             <div className="customer-profile-card">
               <span>{t.auth.signedInAs}</span>
-              <strong>{customerUser.email || customerProfile?.email || emailAddress}</strong>
+              <strong>{customerUser.email || customerProfile?.email || registerEmail}</strong>
             </div>
             <div className="customer-form__grid">
               <label>
@@ -694,9 +808,33 @@ function CustomerPanel({ isOpen, onClose }) {
                 {t.auth.lastName}
                 <input value={lastName} onChange={(event) => setLastName(event.target.value)} autoComplete="family-name" required />
               </label>
+              <label className="customer-form__wide">
+                {t.auth.phone}
+                <input
+                  value={phoneNumber}
+                  onChange={(event) => setPhoneNumber(formatUzbekPhoneNumber(event.target.value))}
+                  placeholder={t.auth.phonePlaceholder}
+                  inputMode="tel"
+                  autoComplete="tel"
+                  required
+                />
+              </label>
+              {isNewProfileStep && (
+                <label className="customer-form__wide">
+                  {language === "uz" ? "Parol" : "Пароль"}
+                  <input
+                    value={accountPassword}
+                    onChange={(event) => setAccountPassword(event.target.value)}
+                    placeholder={language === "uz" ? "Kamida 6 belgi" : "Минимум 6 символов"}
+                    type="password"
+                    autoComplete="new-password"
+                    required
+                  />
+                </label>
+              )}
             </div>
             <AppButton type="submit" icon={CheckCircle2} disabled={isCustomerLoading}>
-              {isCustomerLoading ? t.auth.saving : t.auth.saveProfile}
+              {isCustomerLoading ? t.auth.saving : isNewProfileStep ? (language === "uz" ? "Ro'yxatdan o'tishni yakunlash" : "Завершить регистрацию") : t.auth.saveProfile}
             </AppButton>
             <button className="text-button danger" type="button" onClick={handleLogout} disabled={isCustomerLoading}>
               <LogOut size={16} aria-hidden="true" />
@@ -4055,6 +4193,24 @@ export function BeautyHarmonyWebsite() {
     }
   }, []);
 
+  const signInCustomerPassword = useCallback(async (identifier, password) => {
+    setIsCustomerLoading(true);
+    setCustomerError("");
+    try {
+      const result = await signInCustomerWithPassword(identifier, password);
+      const profile = await getCustomerProfile(result.user);
+      setCustomerUser(result.user);
+      setCustomerProfile(profile);
+      setCustomerListsReadyUid("");
+      return profile;
+    } catch (error) {
+      setCustomerError(error?.message || "Password sign-in failed");
+      throw error;
+    } finally {
+      setIsCustomerLoading(false);
+    }
+  }, []);
+
   const completeCustomerSignInLink = useCallback(async (email) => {
     setIsCustomerLoading(true);
     setCustomerError("");
@@ -4072,6 +4228,19 @@ export function BeautyHarmonyWebsite() {
       return profile;
     } catch (error) {
       setCustomerError(error?.message || "Email link sign-in failed");
+      throw error;
+    } finally {
+      setIsCustomerLoading(false);
+    }
+  }, []);
+
+  const setCustomerAccountPassword = useCallback(async (password) => {
+    setIsCustomerLoading(true);
+    setCustomerError("");
+    try {
+      return await setCustomerPassword(password);
+    } catch (error) {
+      setCustomerError(error?.message || "Password update failed");
       throw error;
     } finally {
       setIsCustomerLoading(false);
@@ -4167,6 +4336,8 @@ export function BeautyHarmonyWebsite() {
       isCustomerLoading,
       customerError,
       completeCustomerSignInLink,
+      signInCustomerPassword,
+      setCustomerAccountPassword,
       sendCustomerSignInLink,
       updateCustomerProfile,
       logoutCustomer,
@@ -4179,6 +4350,8 @@ export function BeautyHarmonyWebsite() {
       isCustomerLoading,
       isCustomerReady,
       logoutCustomer,
+      signInCustomerPassword,
+      setCustomerAccountPassword,
       sendCustomerSignInLink,
       updateCustomerProfile,
     ]
