@@ -11,18 +11,46 @@ function hasFirebaseConfig() {
   return Object.values(firebaseConfig).every(Boolean);
 }
 
+let firebaseApp = null;
 let firestoreDb = null;
 let firestoreApi = null;
+let firebaseAuth = null;
+let firebaseAuthApi = null;
+
+export { hasFirebaseConfig };
+
+export async function getFirebaseApp() {
+  if (!hasFirebaseConfig()) return null;
+  if (!firebaseApp) {
+    const { getApp, getApps, initializeApp } = await import("firebase/app");
+    firebaseApp = getApps().length ? getApp() : initializeApp(firebaseConfig);
+  }
+  return firebaseApp;
+}
 
 async function getFirestoreDb() {
   if (!hasFirebaseConfig()) return null;
   if (!firestoreDb) {
-    const [{ initializeApp }, firestoreModule] = await Promise.all([import("firebase/app"), import("firebase/firestore")]);
-    const app = initializeApp(firebaseConfig);
+    const [app, firestoreModule] = await Promise.all([getFirebaseApp(), import("firebase/firestore")]);
     firestoreApi = firestoreModule;
     firestoreDb = firestoreModule.getFirestore(app);
   }
   return firestoreDb;
+}
+
+export async function getFirestoreClient() {
+  const db = await getFirestoreDb();
+  return db ? { db, firestoreApi } : null;
+}
+
+export async function getFirebaseAuthClient() {
+  if (!hasFirebaseConfig()) return null;
+  if (!firebaseAuth) {
+    const [app, authModule] = await Promise.all([getFirebaseApp(), import("firebase/auth")]);
+    firebaseAuthApi = authModule;
+    firebaseAuth = authModule.getAuth(app);
+  }
+  return { auth: firebaseAuth, authApi: firebaseAuthApi };
 }
 
 export async function fetchFirebaseCatalogProducts() {

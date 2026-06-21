@@ -13,14 +13,18 @@ import {
   Lock,
   LogOut,
   Menu,
+  Minus,
   Moon,
   PackageCheck,
   Palette,
+  Phone,
+  Plus,
   RefreshCw,
   Search,
   Send,
   ShieldCheck,
   ShoppingBag,
+  ShoppingCart,
   SlidersHorizontal,
   Sparkles,
   Store,
@@ -28,6 +32,8 @@ import {
   Tags,
   Trash2,
   Truck,
+  UserCheck,
+  UserRound,
   X,
 } from "lucide-react";
 import {
@@ -69,6 +75,18 @@ import {
   normalizeCatalogProduct,
 } from "./data/catalogData";
 import { fetchFirebaseCatalogProducts } from "./data/firebaseCatalogApi";
+import {
+  confirmCustomerPhoneCode,
+  getCustomerProfile,
+  hasCustomerAuthConfig,
+  isCustomerProfileComplete,
+  normalizeCustomerPhone,
+  saveCustomerCollections,
+  saveCustomerProfile,
+  sendCustomerPhoneCode,
+  signOutCustomer,
+  subscribeCustomerAuth,
+} from "./data/customerAccountApi";
 import { useHashRoute, useRevealAnimation } from "./hooks/usePageEffects";
 
 /*
@@ -94,6 +112,47 @@ const instagramUrl = "https://www.instagram.com/dr.sante_uz/";
 const telegramBotUrl = "https://t.me/beautyharmonyuz_bot";
 const turnstileSiteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY || "";
 const defaultPartnerBrands = "Dr.Sante, Fresh Juice, Green Pharmacy";
+const favoritesStorageKey = "beauty-harmony-favorites";
+const cartStorageKey = "beauty-harmony-cart";
+
+function readStoredArray(key) {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(key) || "[]");
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function cleanFavoriteIds(value) {
+  return [...new Set((Array.isArray(value) ? value : []).map(String).filter(Boolean))];
+}
+
+function cleanCartItems(value) {
+  if (!Array.isArray(value)) return [];
+  const byProductId = new Map();
+
+  value.forEach((item) => {
+    const productId = String(item?.productId || item?.id || "").trim();
+    if (!productId) return;
+    const quantity = Math.max(1, Math.min(99, Number.parseInt(item.quantity, 10) || 1));
+    byProductId.set(productId, Math.min(99, (byProductId.get(productId) || 0) + quantity));
+  });
+
+  return [...byProductId].map(([productId, quantity]) => ({ productId, quantity }));
+}
+
+function mergeCartItems(...groups) {
+  return cleanCartItems(groups.flatMap((group) => (Array.isArray(group) ? group : [])));
+}
+
+function getCartCount(cartItems) {
+  return cleanCartItems(cartItems).reduce((total, item) => total + item.quantity, 0);
+}
+
+function getCustomerDisplayName(profile) {
+  return profile?.displayName || `${profile?.firstName || ""} ${profile?.lastName || ""}`.trim();
+}
 
 // Контекст языка. Через него любой компонент получает language и t.
 const LocaleContext = React.createContext({
@@ -113,6 +172,26 @@ const FavoritesContext = React.createContext({
   toggleFavorite: () => { },
 });
 
+const CartContext = React.createContext({
+  cartItems: [],
+  cartCount: 0,
+  addToCart: () => { },
+  removeFromCart: () => { },
+  updateCartQuantity: () => { },
+});
+
+const CustomerContext = React.createContext({
+  customerUser: null,
+  customerProfile: null,
+  isCustomerReady: false,
+  isCustomerLoading: false,
+  customerError: "",
+  startCustomerSignIn: async () => null,
+  confirmCustomerCode: async () => null,
+  updateCustomerProfile: async () => null,
+  logoutCustomer: async () => {},
+});
+
 function useLocale() {
   return React.useContext(LocaleContext);
 }
@@ -123,6 +202,14 @@ function useAppearance() {
 
 function useFavorites() {
   return React.useContext(FavoritesContext);
+}
+
+function useCart() {
+  return React.useContext(CartContext);
+}
+
+function useCustomer() {
+  return React.useContext(CustomerContext);
 }
 
 // Общая кнопка сайта. Используется как <a>, если передан href, и как <button> без href.
@@ -221,12 +308,22 @@ function Shell({ route, children }) {
   const { language, setLanguage, t } = useLocale();
   const { colorMode, setColorMode } = useAppearance();
   const { favoriteIds } = useFavorites();
+  const { cartCount } = useCart();
+  const { customerUser, customerProfile, isCustomerReady } = useCustomer();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isCustomerPanelOpen, setIsCustomerPanelOpen] = useState(false);
   const isDarkMode = colorMode === "dark";
+  const customerName = getCustomerDisplayName(customerProfile);
 
   useEffect(() => {
     setIsMenuOpen(false);
   }, [route]);
+
+  useEffect(() => {
+    if (isCustomerReady && customerUser && customerProfile && !isCustomerProfileComplete(customerProfile)) {
+      setIsCustomerPanelOpen(true);
+    }
+  }, [customerProfile, customerUser, isCustomerReady]);
 
   const scrollToHomeTop = () => {
     setIsMenuOpen(false);
@@ -292,6 +389,16 @@ function Shell({ route, children }) {
           </span>
         </button>
 
+        <a className="cart-top-button" href="#/cart" aria-label={t.cart.open} onClick={closeMenu}>
+          <ShoppingCart size={18} aria-hidden="true" />
+          {cartCount > 0 && <b>{cartCount}</b>}
+        </a>
+
+        <button className="profile-top-button" type="button" onClick={() => setIsCustomerPanelOpen(true)}>
+          <UserRound size={17} aria-hidden="true" />
+          <span>{customerUser ? customerName || t.common.profile : t.common.signIn}</span>
+        </button>
+
         <AppButton href={uzumShopUrl} variant="ghost" icon={ShoppingBag}>
           {t.uzumMarket}
         </AppButton>
@@ -312,6 +419,7 @@ function Shell({ route, children }) {
 
       <Footer />
       <CookieNotice />
+      <CustomerPanel isOpen={isCustomerPanelOpen} onClose={() => setIsCustomerPanelOpen(false)} />
     </main>
   );
 }
@@ -337,6 +445,252 @@ function CookieNotice() {
         {t.cookies.accept}
       </button>
     </aside>
+  );
+}
+
+function getCustomerAuthErrorMessage(error, language) {
+  const code = error?.code || error?.message || "";
+
+  if (language === "uz") {
+    if (code.includes("invalid-phone-number")) return "Telefon raqami noto'g'ri formatda.";
+    if (code.includes("invalid-verification-code")) return "SMS-kod noto'g'ri.";
+    if (code.includes("code-expired")) return "SMS-kod muddati tugagan. Kodni qaytadan oling.";
+    if (code.includes("too-many-requests")) return "Juda ko'p urinish bo'ldi. Keyinroq urinib ko'ring.";
+    if (code.includes("unauthorized-domain")) return "Bu domen Firebase Auth uchun ruxsat etilmagan.";
+    if (code.includes("operation-not-allowed")) return "Firebase Console ichida Phone sign-in yoqilmagan.";
+    return "Kirish amalga oshmadi. Internet yoki Firebase sozlamalarini tekshiring.";
+  }
+
+  if (code.includes("invalid-phone-number")) return "Номер телефона указан в неверном формате.";
+  if (code.includes("invalid-verification-code")) return "SMS-код неверный.";
+  if (code.includes("code-expired")) return "SMS-код истек. Получите код заново.";
+  if (code.includes("too-many-requests")) return "Слишком много попыток. Попробуйте позже.";
+  if (code.includes("unauthorized-domain")) return "Этот домен не разрешен в Firebase Auth.";
+  if (code.includes("operation-not-allowed")) return "В Firebase Console не включен Phone sign-in.";
+  return "Не удалось войти. Проверьте интернет или настройки Firebase.";
+}
+
+function CustomerPanel({ isOpen, onClose }) {
+  const { language, t } = useLocale();
+  const {
+    customerUser,
+    customerProfile,
+    isCustomerReady,
+    isCustomerLoading,
+    startCustomerSignIn,
+    confirmCustomerCode,
+    updateCustomerProfile,
+    logoutCustomer,
+  } = useCustomer();
+  const [phoneNumber, setPhoneNumber] = useState("+998 ");
+  const [code, setCode] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [step, setStep] = useState("phone");
+  const [confirmationResult, setConfirmationResult] = useState(null);
+  const [statusText, setStatusText] = useState("");
+  const [errorText, setErrorText] = useState("");
+  const isProfileComplete = isCustomerProfileComplete(customerProfile);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    setErrorText("");
+    setStatusText("");
+    setCode("");
+
+    if (customerUser) {
+      setStep(isProfileComplete ? "profile" : "details");
+      setPhoneNumber(customerUser.phoneNumber || "+998 ");
+      setFirstName(customerProfile?.firstName || "");
+      setLastName(customerProfile?.lastName || "");
+    } else {
+      setStep("phone");
+      setFirstName("");
+      setLastName("");
+    }
+  }, [customerProfile, customerUser, isOpen, isProfileComplete]);
+
+  if (!isOpen) return null;
+
+  const handleClose = () => {
+    if (!isCustomerLoading) onClose();
+  };
+
+  async function handleSendCode(event) {
+    event.preventDefault();
+    setErrorText("");
+    setStatusText("");
+
+    if (!hasCustomerAuthConfig()) {
+      setErrorText(t.auth.authUnavailable);
+      return;
+    }
+
+    const normalizedPhone = normalizeCustomerPhone(phoneNumber);
+    if (!isValidUzbekPhoneNumber(normalizedPhone)) {
+      setErrorText(t.auth.invalidPhone);
+      return;
+    }
+
+    try {
+      const confirmation = await startCustomerSignIn(normalizedPhone, "customer-recaptcha-container", language);
+      setConfirmationResult(confirmation);
+      setPhoneNumber(formatUzbekPhoneNumber(normalizedPhone));
+      setStep("code");
+      setStatusText(t.auth.codeSent);
+    } catch (error) {
+      setErrorText(getCustomerAuthErrorMessage(error, language));
+    }
+  }
+
+  async function handleConfirmCode(event) {
+    event.preventDefault();
+    setErrorText("");
+    setStatusText("");
+
+    if (!/^\d{6}$/.test(code.trim())) {
+      setErrorText(t.auth.invalidCode);
+      return;
+    }
+
+    try {
+      const profile = await confirmCustomerCode(confirmationResult, code);
+      if (isCustomerProfileComplete(profile)) {
+        setStatusText(t.auth.oldUserText);
+        setStep("profile");
+      } else {
+        setFirstName(profile?.firstName || "");
+        setLastName(profile?.lastName || "");
+        setStatusText(t.auth.newUserText);
+        setStep("details");
+      }
+    } catch (error) {
+      setErrorText(getCustomerAuthErrorMessage(error, language));
+    }
+  }
+
+  async function handleSaveProfile(event) {
+    event.preventDefault();
+    setErrorText("");
+    setStatusText("");
+
+    if (!firstName.trim() || !lastName.trim()) {
+      setErrorText(t.auth.requiredName);
+      return;
+    }
+
+    try {
+      await updateCustomerProfile({ firstName, lastName });
+      setStatusText(t.auth.oldUserText);
+      setStep("profile");
+    } catch (error) {
+      setErrorText(getCustomerAuthErrorMessage(error, language));
+    }
+  }
+
+  async function handleLogout() {
+    setErrorText("");
+    try {
+      await logoutCustomer();
+      setConfirmationResult(null);
+      setStep("phone");
+      setStatusText("");
+      setCode("");
+      setPhoneNumber("+998 ");
+    } catch (error) {
+      setErrorText(getCustomerAuthErrorMessage(error, language));
+    }
+  }
+
+  return (
+    <div className="customer-modal" role="dialog" aria-modal="true" aria-labelledby="customer-modal-title">
+      <button className="customer-modal__backdrop" type="button" aria-label={t.auth.close} onClick={handleClose} />
+      <article className="customer-modal__card">
+        <button className="customer-modal__close" type="button" aria-label={t.auth.close} onClick={handleClose}>
+          <X size={18} aria-hidden="true" />
+        </button>
+
+        <div className="customer-modal__icon">
+          {customerUser ? <UserCheck size={27} aria-hidden="true" /> : <Phone size={27} aria-hidden="true" />}
+        </div>
+        <h2 id="customer-modal-title">{customerUser ? t.auth.profileTitle : t.auth.title}</h2>
+        <p>{customerUser ? t.auth.oldUserText : t.auth.smsNotice}</p>
+
+        {!isCustomerReady && <p className="form-status">{language === "uz" ? "Profil tekshirilmoqda..." : "Проверяем профиль..."}</p>}
+
+        {!customerUser && step === "phone" && (
+          <form className="customer-form" onSubmit={handleSendCode}>
+            <label>
+              {t.auth.phone}
+              <input
+                value={phoneNumber}
+                onChange={(event) => setPhoneNumber(formatUzbekPhoneNumber(event.target.value))}
+                placeholder={t.auth.phonePlaceholder}
+                inputMode="tel"
+                autoComplete="tel"
+                required
+              />
+            </label>
+            <div id="customer-recaptcha-container" className="customer-recaptcha" />
+            <AppButton type="submit" icon={Send} disabled={isCustomerLoading}>
+              {isCustomerLoading ? t.auth.sending : t.auth.sendCode}
+            </AppButton>
+          </form>
+        )}
+
+        {!customerUser && step === "code" && (
+          <form className="customer-form" onSubmit={handleConfirmCode}>
+            <label>
+              {t.auth.code}
+              <input
+                value={code}
+                onChange={(event) => setCode(event.target.value.replace(/\D/g, "").slice(0, 6))}
+                placeholder={t.auth.codePlaceholder}
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                required
+              />
+            </label>
+            <AppButton type="submit" icon={ShieldCheck} disabled={isCustomerLoading}>
+              {isCustomerLoading ? t.auth.confirming : t.auth.confirmCode}
+            </AppButton>
+            <button className="text-button" type="button" onClick={() => setStep("phone")} disabled={isCustomerLoading}>
+              {language === "uz" ? "Raqamni o'zgartirish" : "Изменить номер"}
+            </button>
+          </form>
+        )}
+
+        {customerUser && (step === "details" || step === "profile") && (
+          <form className="customer-form" onSubmit={handleSaveProfile}>
+            <div className="customer-profile-card">
+              <span>{t.auth.signedInAs}</span>
+              <strong>{customerUser.phoneNumber || phoneNumber}</strong>
+            </div>
+            <div className="customer-form__grid">
+              <label>
+                {t.auth.firstName}
+                <input value={firstName} onChange={(event) => setFirstName(event.target.value)} autoComplete="given-name" required />
+              </label>
+              <label>
+                {t.auth.lastName}
+                <input value={lastName} onChange={(event) => setLastName(event.target.value)} autoComplete="family-name" required />
+              </label>
+            </div>
+            <AppButton type="submit" icon={CheckCircle2} disabled={isCustomerLoading}>
+              {isCustomerLoading ? t.auth.saving : t.auth.saveProfile}
+            </AppButton>
+            <button className="text-button danger" type="button" onClick={handleLogout} disabled={isCustomerLoading}>
+              <LogOut size={16} aria-hidden="true" />
+              {t.common.signOut}
+            </button>
+          </form>
+        )}
+
+        {statusText && <p className="form-status">{statusText}</p>}
+        {errorText && <p className="form-status is-error">{errorText}</p>}
+      </article>
+    </div>
   );
 }
 
@@ -1003,13 +1357,30 @@ function FavoriteButton({ productId, className = "" }) {
   );
 }
 
+function AddToCartButton({ product }) {
+  const { t } = useLocale();
+  const { cartItems, addToCart } = useCart();
+  const isInCart = cartItems.some((item) => item.productId === product.id);
+
+  function handleAddToCart(event) {
+    event.preventDefault();
+    event.stopPropagation();
+    addToCart(product.id);
+  }
+
+  return (
+    <AppButton onClick={handleAddToCart} icon={ShoppingCart}>
+      {isInCart ? t.cart.added : t.cart.add}
+    </AppButton>
+  );
+}
+
 // Одна карточка товара внутри каталога.
 function CatalogProductCard({ product }) {
   const { language, t } = useLocale();
   const [isFlipped, setIsFlipped] = useState(false);
   const brand = getProductBrand(product);
   const brandCopy = brand ? getBrandCopy(brand, language) : null;
-  const productHref = product.href || uzumShopUrl;
   const productTitle = getProductTitle(product, language);
   const productDescription = getProductDescription(product, language);
   const productVolume = getProductVolume(product, language);
@@ -1066,9 +1437,7 @@ function CatalogProductCard({ product }) {
                 )}
               </div>
             )}
-            <AppButton href={productHref} icon={ShoppingBag}>
-              {t.common.buy}
-            </AppButton>
+            <AddToCartButton product={product} />
           </div>
         </div>
 
@@ -1099,9 +1468,7 @@ function CatalogProductCard({ product }) {
                 {t.common.aboutBrand} <ArrowUpRight size={15} aria-hidden="true" />
               </a>
             )}
-            <AppButton href={productHref} icon={ShoppingBag}>
-              {t.common.buy}
-            </AppButton>
+            <AddToCartButton product={product} />
           </div>
         </div>
       </div>
@@ -1401,6 +1768,117 @@ function FavoritesPage() {
             <Heart size={34} aria-hidden="true" />
             <h2>{t.favorites.emptyTitle}</h2>
             <p>{t.favorites.emptyText}</p>
+            <AppButton href="#/catalog" icon={ShoppingBag}>
+              {t.favorites.openCatalog}
+            </AppButton>
+          </div>
+        )}
+      </section>
+    </>
+  );
+}
+
+function CartPage() {
+  const { language, t } = useLocale();
+  const { customerUser } = useCustomer();
+  const { cartItems, cartCount, removeFromCart, updateCartQuantity } = useCart();
+  const [catalogProducts, setCatalogProducts] = useState(fallbackCatalogProducts);
+  const [isLoadingCatalog, setIsLoadingCatalog] = useState(true);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    loadBestCatalogProducts().then(({ products }) => {
+      if (isMounted) setCatalogProducts(products);
+    }).finally(() => {
+      if (isMounted) setIsLoadingCatalog(false);
+    });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const cartProducts = useMemo(() => {
+    const productById = new Map(catalogProducts.map((product) => [product.id, product]));
+    return cartItems
+      .map((item) => ({ ...item, product: productById.get(item.productId) }))
+      .filter((item) => item.product);
+  }, [cartItems, catalogProducts]);
+
+  const cartTotal = useMemo(() => {
+    return cartProducts.reduce((total, item) => total + (Number(item.product.price) || 0) * item.quantity, 0);
+  }, [cartProducts]);
+
+  return (
+    <>
+      <header className="favorites-hero cart-hero">
+        <div className="favorites-hero__copy reveal is-visible">
+          <span className="eyebrow">
+            <ShoppingCart size={17} aria-hidden="true" />
+            {customerUser ? t.cart.savedAccount : t.cart.savedLocal}
+          </span>
+          <h1>{t.cart.title}</h1>
+          <div className="hero-actions">
+            <AppButton href="#/catalog" icon={ShoppingBag}>
+              {t.favorites.openCatalog}
+            </AppButton>
+          </div>
+        </div>
+
+        <div className="favorites-hero__stats reveal is-visible">
+          <strong>{cartCount}</strong>
+          <span>{isLoadingCatalog ? t.favorites.loading : t.cart.count}</span>
+        </div>
+      </header>
+
+      <section className="cart-page">
+        {cartProducts.length > 0 ? (
+          <>
+            <div className="cart-list">
+              {cartProducts.map(({ product, quantity }) => {
+                const title = getProductTitle(product, language);
+                const brand = getProductBrand(product);
+                const brandCopy = brand ? getBrandCopy(brand, language) : null;
+
+                return (
+                  <article className="cart-item" key={product.id}>
+                    <img src={product.image} alt={title} loading="lazy" />
+                    <div>
+                      <span>{brandCopy?.localName || product.brand}</span>
+                      <h2>{title}</h2>
+                      <p>{getProductPurpose(product, language)}</p>
+                      <strong>{formatPrice(product.price, language)}</strong>
+                    </div>
+                    <div className="cart-quantity" aria-label={t.cart.quantity}>
+                      <button type="button" onClick={() => updateCartQuantity(product.id, quantity - 1)}>
+                        <Minus size={16} aria-hidden="true" />
+                      </button>
+                      <b>{quantity}</b>
+                      <button type="button" onClick={() => updateCartQuantity(product.id, quantity + 1)}>
+                        <Plus size={16} aria-hidden="true" />
+                      </button>
+                    </div>
+                    <button className="cart-remove" type="button" onClick={() => removeFromCart(product.id)}>
+                      <Trash2 size={17} aria-hidden="true" />
+                      {t.cart.remove}
+                    </button>
+                  </article>
+                );
+              })}
+            </div>
+
+            <aside className="cart-summary-panel">
+              <span>{t.cart.total}</span>
+              <strong>{cartTotal ? formatPrice(cartTotal, language) : language === "uz" ? "Narx Uzumda" : "Цена в Uzum"}</strong>
+              <p>{t.cart.checkoutSoon}</p>
+            </aside>
+          </>
+        ) : (
+          <div className="catalog-empty reveal is-visible">
+            <ShoppingCart size={34} aria-hidden="true" />
+            <h2>{t.cart.emptyTitle}</h2>
+            <p>{t.cart.emptyText}</p>
             <AppButton href="#/catalog" icon={ShoppingBag}>
               {t.favorites.openCatalog}
             </AppButton>
@@ -2161,15 +2639,77 @@ export function BeautyHarmonyWebsite() {
   const route = useHashRoute();
   const [language, setLanguage] = useState(() => localStorage.getItem("beauty-harmony-language") || "ru");
   const [colorMode, setColorMode] = useState(() => localStorage.getItem("beauty-harmony-theme") || "light");
-  const [favoriteIds, setFavoriteIds] = useState(() => {
-    try {
-      const parsed = JSON.parse(localStorage.getItem("beauty-harmony-favorites") || "[]");
-      return Array.isArray(parsed) ? [...new Set(parsed.filter(Boolean))] : [];
-    } catch {
-      return [];
-    }
-  });
+  const [favoriteIds, setFavoriteIds] = useState(() => cleanFavoriteIds(readStoredArray(favoritesStorageKey)));
+  const [cartItems, setCartItems] = useState(() => cleanCartItems(readStoredArray(cartStorageKey)));
+  const [customerUser, setCustomerUser] = useState(null);
+  const [customerProfile, setCustomerProfile] = useState(null);
+  const [isCustomerReady, setIsCustomerReady] = useState(!hasCustomerAuthConfig());
+  const [isCustomerLoading, setIsCustomerLoading] = useState(false);
+  const [customerError, setCustomerError] = useState("");
+  const [customerListsReadyUid, setCustomerListsReadyUid] = useState("");
+  const saveCustomerCollectionsTimeoutRef = useRef(null);
   useRevealAnimation(route);
+
+  useEffect(() => {
+    let isMounted = true;
+    let unsubscribe = () => {};
+    let authChangeId = 0;
+
+    subscribeCustomerAuth(async (user) => {
+      const currentAuthChangeId = ++authChangeId;
+      if (!isMounted) return;
+      setIsCustomerLoading(true);
+      setCustomerError("");
+
+      if (!user) {
+        setCustomerUser(null);
+        setCustomerProfile(null);
+        setCustomerListsReadyUid("");
+        setIsCustomerReady(true);
+        setIsCustomerLoading(false);
+        return;
+      }
+
+      try {
+        const profile = await getCustomerProfile(user);
+        if (!isMounted || currentAuthChangeId !== authChangeId) return;
+        setCustomerUser(user);
+        setCustomerProfile(profile);
+        setIsCustomerReady(true);
+      } catch (error) {
+        if (!isMounted || currentAuthChangeId !== authChangeId) return;
+        console.warn("[Customer] profile load failed:", error);
+        setCustomerUser(user);
+        setCustomerProfile(null);
+        setCustomerError(error?.message || "Profile load failed");
+        setIsCustomerReady(true);
+      } finally {
+        if (isMounted && currentAuthChangeId === authChangeId) setIsCustomerLoading(false);
+      }
+    }).then((unsubscribeAuth) => {
+      unsubscribe = unsubscribeAuth || (() => {});
+    }).catch((error) => {
+      console.warn("[Customer] auth subscription failed:", error);
+      if (isMounted) {
+        setCustomerError(error?.message || "Auth subscription failed");
+        setIsCustomerReady(true);
+      }
+    });
+
+    return () => {
+      isMounted = false;
+      unsubscribe();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!customerUser?.uid || !customerProfile) return;
+    if (customerListsReadyUid === customerUser.uid) return;
+
+    setFavoriteIds((current) => cleanFavoriteIds([...current, ...(customerProfile.favoriteIds || [])]));
+    setCartItems((current) => mergeCartItems(current, customerProfile.cartItems || []));
+    setCustomerListsReadyUid(customerUser.uid);
+  }, [customerListsReadyUid, customerProfile, customerUser]);
 
   useEffect(() => {
     localStorage.setItem("beauty-harmony-language", language);
@@ -2183,16 +2723,125 @@ export function BeautyHarmonyWebsite() {
   }, [colorMode]);
 
   useEffect(() => {
-    localStorage.setItem("beauty-harmony-favorites", JSON.stringify(favoriteIds));
+    localStorage.setItem(favoritesStorageKey, JSON.stringify(favoriteIds));
   }, [favoriteIds]);
+
+  useEffect(() => {
+    localStorage.setItem(cartStorageKey, JSON.stringify(cartItems));
+  }, [cartItems]);
+
+  useEffect(() => {
+    if (!customerUser?.uid || customerListsReadyUid !== customerUser.uid) return undefined;
+
+    window.clearTimeout(saveCustomerCollectionsTimeoutRef.current);
+    saveCustomerCollectionsTimeoutRef.current = window.setTimeout(() => {
+      saveCustomerCollections(customerUser.uid, { favoriteIds, cartItems }).catch((error) => {
+        console.warn("[Customer] collections sync failed:", error);
+      });
+    }, 650);
+
+    return () => window.clearTimeout(saveCustomerCollectionsTimeoutRef.current);
+  }, [cartItems, customerListsReadyUid, customerUser, favoriteIds]);
 
   const toggleFavorite = useCallback((productId) => {
     if (!productId) return;
-    setFavoriteIds((current) => (
-      current.includes(productId)
+    setFavoriteIds((current) => {
+      const next = current.includes(productId)
         ? current.filter((id) => id !== productId)
-        : [productId, ...current]
-    ));
+        : [productId, ...current];
+      return cleanFavoriteIds(next);
+    });
+  }, []);
+
+  const addToCart = useCallback((productId) => {
+    if (!productId) return;
+    setCartItems((current) => cleanCartItems([...current, { productId, quantity: 1 }]));
+  }, []);
+
+  const removeFromCart = useCallback((productId) => {
+    setCartItems((current) => current.filter((item) => item.productId !== productId));
+  }, []);
+
+  const updateCartQuantity = useCallback((productId, quantity) => {
+    setCartItems((current) => {
+      const nextQuantity = Number.parseInt(quantity, 10) || 0;
+      if (nextQuantity <= 0) return current.filter((item) => item.productId !== productId);
+
+      const hasItem = current.some((item) => item.productId === productId);
+      const next = hasItem
+        ? current.map((item) => (item.productId === productId ? { ...item, quantity: Math.min(99, nextQuantity) } : item))
+        : [...current, { productId, quantity: Math.min(99, nextQuantity) }];
+      return cleanCartItems(next);
+    });
+  }, []);
+
+  const startCustomerSignIn = useCallback(async (phoneNumber, recaptchaContainerId, nextLanguage) => {
+    setIsCustomerLoading(true);
+    setCustomerError("");
+    try {
+      return await sendCustomerPhoneCode(phoneNumber, recaptchaContainerId, nextLanguage);
+    } catch (error) {
+      setCustomerError(error?.message || "Phone sign-in failed");
+      throw error;
+    } finally {
+      setIsCustomerLoading(false);
+    }
+  }, []);
+
+  const confirmCustomerCode = useCallback(async (confirmationResult, code) => {
+    setIsCustomerLoading(true);
+    setCustomerError("");
+    try {
+      const result = await confirmCustomerPhoneCode(confirmationResult, code);
+      const profile = await getCustomerProfile(result.user);
+      setCustomerUser(result.user);
+      setCustomerProfile(profile);
+      setIsCustomerReady(true);
+      return profile;
+    } catch (error) {
+      setCustomerError(error?.message || "Code confirmation failed");
+      throw error;
+    } finally {
+      setIsCustomerLoading(false);
+    }
+  }, []);
+
+  const updateCustomerProfile = useCallback(async (profilePatch) => {
+    if (!customerUser) throw new Error("USER_MISSING");
+    setIsCustomerLoading(true);
+    setCustomerError("");
+    try {
+      const savedProfile = await saveCustomerProfile(customerUser, profilePatch);
+      const nextProfile = {
+        ...(customerProfile || {}),
+        ...savedProfile,
+        favoriteIds,
+        cartItems,
+      };
+      setCustomerProfile(nextProfile);
+      return nextProfile;
+    } catch (error) {
+      setCustomerError(error?.message || "Profile save failed");
+      throw error;
+    } finally {
+      setIsCustomerLoading(false);
+    }
+  }, [cartItems, customerProfile, customerUser, favoriteIds]);
+
+  const logoutCustomer = useCallback(async () => {
+    setIsCustomerLoading(true);
+    setCustomerError("");
+    try {
+      await signOutCustomer();
+      setCustomerUser(null);
+      setCustomerProfile(null);
+      setCustomerListsReadyUid("");
+    } catch (error) {
+      setCustomerError(error?.message || "Logout failed");
+      throw error;
+    } finally {
+      setIsCustomerLoading(false);
+    }
   }, []);
 
   const content = useMemo(() => {
@@ -2201,6 +2850,7 @@ export function BeautyHarmonyWebsite() {
     if (route === "/brands") return <BrandsSection />;
     if (route === "/about") return <AboutCompanyPage />;
     if (route === "/favorites") return <FavoritesPage />;
+    if (route === "/cart") return <CartPage />;
     if (route === "/b2b") return <B2BPage />;
     if (route === "/admin") return <AdminPage />;
 
@@ -2216,6 +2866,7 @@ export function BeautyHarmonyWebsite() {
   const localeValue = useMemo(() => ({ language, setLanguage, t: ui[language] || ui.ru }), [language]);
   const appearanceValue = useMemo(() => ({ colorMode, setColorMode }), [colorMode]);
   const favoriteSet = useMemo(() => new Set(favoriteIds), [favoriteIds]);
+  const cartCount = useMemo(() => getCartCount(cartItems), [cartItems]);
   const favoritesValue = useMemo(
     () => ({
       favoriteIds,
@@ -2224,13 +2875,51 @@ export function BeautyHarmonyWebsite() {
     }),
     [favoriteIds, favoriteSet, toggleFavorite]
   );
+  const cartValue = useMemo(
+    () => ({
+      cartItems,
+      cartCount,
+      addToCart,
+      removeFromCart,
+      updateCartQuantity,
+    }),
+    [addToCart, cartCount, cartItems, removeFromCart, updateCartQuantity]
+  );
+  const customerValue = useMemo(
+    () => ({
+      customerUser,
+      customerProfile,
+      isCustomerReady,
+      isCustomerLoading,
+      customerError,
+      startCustomerSignIn,
+      confirmCustomerCode,
+      updateCustomerProfile,
+      logoutCustomer,
+    }),
+    [
+      confirmCustomerCode,
+      customerError,
+      customerProfile,
+      customerUser,
+      isCustomerLoading,
+      isCustomerReady,
+      logoutCustomer,
+      startCustomerSignIn,
+      updateCustomerProfile,
+    ]
+  );
 
   return (
     <LocaleContext.Provider value={localeValue}>
       <AppearanceContext.Provider value={appearanceValue}>
-        <FavoritesContext.Provider value={favoritesValue}>
-          <Shell route={route}>{content}</Shell>
-        </FavoritesContext.Provider>
+        <CustomerContext.Provider value={customerValue}>
+          <CartContext.Provider value={cartValue}>
+            <FavoritesContext.Provider value={favoritesValue}>
+              <Shell route={route}>{content}</Shell>
+            </FavoritesContext.Provider>
+          </CartContext.Provider>
+        </CustomerContext.Provider>
       </AppearanceContext.Provider>
     </LocaleContext.Provider>
   );
