@@ -1,21 +1,41 @@
 import { getFirebaseAuthClient, getFirestoreClient, hasFirebaseConfig } from "./firebaseCatalogApi";
 
-let customerRecaptchaVerifier = null;
-let customerRecaptchaContainerId = "";
+const customerEmailLinkStorageKey = "beauty-harmony-email-for-sign-in";
 
 export function hasCustomerAuthConfig() {
   return hasFirebaseConfig();
 }
 
-export function normalizeCustomerPhone(phoneNumber = "") {
-  const digits = String(phoneNumber).replace(/\D/g, "");
-  let localDigits = digits.startsWith("998") ? digits.slice(3) : digits;
-  localDigits = localDigits.replace(/^0+/, "").slice(0, 9);
-  return localDigits.length === 9 ? `+998${localDigits}` : String(phoneNumber).trim();
+export function normalizeCustomerEmail(email = "") {
+  return String(email).trim().toLowerCase();
+}
+
+export function isCustomerEmailValid(email = "") {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizeCustomerEmail(email));
 }
 
 export function isCustomerProfileComplete(profile) {
   return Boolean(profile?.firstName?.trim() && profile?.lastName?.trim());
+}
+
+function getEmailLinkContinueUrl() {
+  if (typeof window === "undefined") return "";
+  return `${window.location.origin}${window.location.pathname}`;
+}
+
+function rememberEmailForLink(email) {
+  if (typeof localStorage === "undefined") return;
+  localStorage.setItem(customerEmailLinkStorageKey, normalizeCustomerEmail(email));
+}
+
+function getRememberedEmailForLink() {
+  if (typeof localStorage === "undefined") return "";
+  return normalizeCustomerEmail(localStorage.getItem(customerEmailLinkStorageKey) || "");
+}
+
+function forgetEmailForLink() {
+  if (typeof localStorage === "undefined") return;
+  localStorage.removeItem(customerEmailLinkStorageKey);
 }
 
 function cleanFavoriteIds(value) {
@@ -45,6 +65,7 @@ function normalizeCustomerProfile(user, data = {}) {
 
   return {
     uid: user.uid,
+    email: data.email || user.email || "",
     phoneNumber: data.phoneNumber || user.phoneNumber || "",
     firstName,
     lastName,
@@ -52,44 +73,6 @@ function normalizeCustomerProfile(user, data = {}) {
     favoriteIds: cleanFavoriteIds(data.favoriteIds),
     cartItems: cleanCartItems(data.cartItems),
   };
-}
-
-function createRecaptchaVerifier(authApi, auth, containerId, language) {
-  const parameters = {
-    size: "invisible",
-    hl: language === "uz" ? "uz" : "ru",
-  };
-
-  try {
-    return new authApi.RecaptchaVerifier(auth, containerId, parameters);
-  } catch {
-    return new authApi.RecaptchaVerifier(containerId, parameters, auth);
-  }
-}
-
-function clearRecaptchaContainer(containerId) {
-  if (!containerId || typeof document === "undefined") return;
-
-  const container = document.getElementById(containerId);
-  if (container) {
-    container.innerHTML = "";
-  }
-}
-
-function clearCustomerRecaptchaVerifier(containerId = customerRecaptchaContainerId) {
-  if (customerRecaptchaVerifier) {
-    try {
-      customerRecaptchaVerifier.clear();
-    } catch {
-      // Firebase can throw if the widget was already removed from the DOM.
-    }
-  }
-
-  customerRecaptchaVerifier = null;
-  clearRecaptchaContainer(containerId);
-  if (containerId === customerRecaptchaContainerId) {
-    customerRecaptchaContainerId = "";
-  }
 }
 
 export async function subscribeCustomerAuth(callback) {
@@ -102,32 +85,51 @@ export async function subscribeCustomerAuth(callback) {
   return client.authApi.onAuthStateChanged(client.auth, callback);
 }
 
-export async function sendCustomerPhoneCode(phoneNumber, recaptchaContainerId, language = "ru") {
+export async function isCustomerEmailSignInLink() {
+  const client = await getFirebaseAuthClient();
+  if (!client || typeof window === "undefined") return false;
+  return client.authApi.isSignInWithEmailLink(client.auth, window.location.href);
+}
+
+export async function sendCustomerEmailLink(email, language = "ru") {
+  const normalizedEmail = normalizeCustomerEmail(email);
+  if (!isCustomerEmailValid(normalizedEmail)) throw new Error("INVALID_EMAIL");
+
   const client = await getFirebaseAuthClient();
   if (!client) throw new Error("FIREBASE_NOT_CONFIGURED");
 
   const { auth, authApi } = client;
   auth.languageCode = language === "uz" ? "uz" : "ru";
 
-  clearCustomerRecaptchaVerifier();
-  clearRecaptchaContainer(recaptchaContainerId);
+  await authApi.sendSignInLinkToEmail(auth, normalizedEmail, {
+    url: getEmailLinkContinueUrl(),
+    handleCodeInApp: true,
+  });
 
-  customerRecaptchaContainerId = recaptchaContainerId;
-  customerRecaptchaVerifier = createRecaptchaVerifier(authApi, auth, recaptchaContainerId, language);
-
-  try {
-    return await authApi.signInWithPhoneNumber(auth, normalizeCustomerPhone(phoneNumber), customerRecaptchaVerifier);
-  } catch (error) {
-    if (String(error?.message || error?.code || "").includes("already been rendered")) {
-      clearCustomerRecaptchaVerifier(recaptchaContainerId);
-    }
-    throw error;
-  }
+  rememberEmailForLink(normalizedEmail);
+  return { email: normalizedEmail };
 }
 
-export async function confirmCustomerPhoneCode(confirmationResult, code) {
-  if (!confirmationResult) throw new Error("CONFIRMATION_MISSING");
-  return confirmationResult.confirm(String(code || "").trim());
+export async function completeCustomerEmailLinkSignIn(email) {
+  const client = await getFirebaseAuthClient();
+  if (!client) throw new Error("FIREBASE_NOT_CONFIGURED");
+  if (typeof window === "undefined") throw new Error("EMAIL_LINK_MISSING");
+
+  const { auth, authApi } = client;
+  const link = window.location.href;
+
+  if (!authApi.isSignInWithEmailLink(auth, link)) {
+    throw new Error("EMAIL_LINK_MISSING");
+  }
+
+  const normalizedEmail = normalizeCustomerEmail(email || getRememberedEmailForLink());
+  if (!isCustomerEmailValid(normalizedEmail)) {
+    throw new Error("EMAIL_LINK_EMAIL_MISSING");
+  }
+
+  const result = await authApi.signInWithEmailLink(auth, normalizedEmail, link);
+  forgetEmailForLink();
+  return result;
 }
 
 export async function signOutCustomer() {
@@ -152,6 +154,7 @@ export async function getCustomerProfile(user) {
       profileRef,
       {
         uid: user.uid,
+        email: user.email || "",
         phoneNumber: user.phoneNumber || "",
         firstName: "",
         lastName: "",
@@ -166,7 +169,14 @@ export async function getCustomerProfile(user) {
     return createdProfile;
   }
 
-  return normalizeCustomerProfile(user, snapshot.data());
+  const data = snapshot.data();
+  const nextProfile = normalizeCustomerProfile(user, data);
+
+  if (user.email && data.email !== user.email) {
+    await firestoreApi.setDoc(profileRef, { email: user.email, updatedAt: firestoreApi.serverTimestamp() }, { merge: true });
+  }
+
+  return nextProfile;
 }
 
 export async function saveCustomerProfile(user, profilePatch) {
@@ -180,6 +190,7 @@ export async function saveCustomerProfile(user, profilePatch) {
     firstName,
     lastName,
     displayName,
+    email: user.email || profilePatch.email || "",
     phoneNumber: user.phoneNumber || profilePatch.phoneNumber || "",
   };
 

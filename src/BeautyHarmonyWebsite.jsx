@@ -12,12 +12,12 @@ import {
   Leaf,
   Lock,
   LogOut,
+  Mail,
   Menu,
   Minus,
   Moon,
   PackageCheck,
   Palette,
-  Phone,
   Plus,
   RefreshCw,
   Search,
@@ -76,14 +76,15 @@ import {
 } from "./data/catalogData";
 import { fetchFirebaseCatalogProducts } from "./data/firebaseCatalogApi";
 import {
-  confirmCustomerPhoneCode,
+  completeCustomerEmailLinkSignIn,
   getCustomerProfile,
   hasCustomerAuthConfig,
+  isCustomerEmailSignInLink,
+  isCustomerEmailValid,
   isCustomerProfileComplete,
-  normalizeCustomerPhone,
   saveCustomerCollections,
   saveCustomerProfile,
-  sendCustomerPhoneCode,
+  sendCustomerEmailLink,
   signOutCustomer,
   subscribeCustomerAuth,
 } from "./data/customerAccountApi";
@@ -186,8 +187,7 @@ const CustomerContext = React.createContext({
   isCustomerReady: false,
   isCustomerLoading: false,
   customerError: "",
-  startCustomerSignIn: async () => null,
-  confirmCustomerCode: async () => null,
+  sendCustomerSignInLink: async () => null,
   updateCustomerProfile: async () => null,
   logoutCustomer: async () => {},
 });
@@ -451,31 +451,25 @@ function getCustomerAuthErrorMessage(error, language) {
 
   if (language === "uz") {
     if (details.includes("FIREBASE_NOT_CONFIGURED")) return "Firebase sozlamalari saytga ulanmagan.";
-    if (details.includes("invalid-phone-number")) return "Telefon raqami noto'g'ri formatda.";
-    if (details.includes("invalid-verification-code")) return "SMS-kod noto'g'ri.";
-    if (details.includes("code-expired")) return "SMS-kod muddati tugagan. Kodni qaytadan oling.";
+    if (details.includes("INVALID_EMAIL") || details.includes("invalid-email")) return "Email manzil noto'g'ri yozilgan.";
+    if (details.includes("EMAIL_LINK_EMAIL_MISSING")) return "Havola boshqa brauzerda ochilgan. Qayta email kiriting va yangi havola oling.";
+    if (details.includes("EMAIL_LINK_MISSING")) return "Kirish havolasi topilmadi yoki eskirgan.";
+    if (details.includes("expired-action-code") || details.includes("invalid-action-code")) return "Email havola eskirgan. Yangi havola oling.";
     if (details.includes("too-many-requests")) return "Juda ko'p urinish bo'ldi. Keyinroq urinib ko'ring.";
-    if (details.includes("quota-exceeded")) return "Firebase SMS limiti tugagan. Keyinroq urinib ko'ring.";
     if (details.includes("unauthorized-domain") || details.includes("app-not-authorized")) return "Bu domen Firebase Auth Authorized domains ro'yxatiga qo'shilmagan.";
-    if (details.includes("operation-not-allowed")) return "Firebase ichida Phone sign-in yoki SMS region policy sozlanmagan. Authentication > Settings > SMS region policy ichida Uzbekistan (+998) ni ruxsat qiling.";
-    if (details.includes("invalid-app-credential") || details.includes("missing-app-credential") || details.includes("captcha-check-failed")) {
-      return "reCAPTCHA/Firebase tekshiruvi o'tmadi. Firebase Auth ichida domen va Phone sign-in sozlamalarini tekshiring.";
-    }
+    if (details.includes("operation-not-allowed")) return "Firebase ichida Email link sign-in yoqilmagan. Authentication > Sign-in method > Email/Password ichida Email link ni yoqing.";
     if (details.includes("network-request-failed")) return "Internet bilan ulanishda muammo bor.";
     return `Kirish amalga oshmadi. Firebase kodi: ${details || "noma'lum"}`;
   }
 
   if (details.includes("FIREBASE_NOT_CONFIGURED")) return "Firebase-настройки не подключены к сайту.";
-  if (details.includes("invalid-phone-number")) return "Номер телефона указан в неверном формате.";
-  if (details.includes("invalid-verification-code")) return "SMS-код неверный.";
-  if (details.includes("code-expired")) return "SMS-код истек. Получите код заново.";
+  if (details.includes("INVALID_EMAIL") || details.includes("invalid-email")) return "Email указан в неверном формате.";
+  if (details.includes("EMAIL_LINK_EMAIL_MISSING")) return "Ссылка открыта в другом браузере. Введите email заново и получите новую ссылку.";
+  if (details.includes("EMAIL_LINK_MISSING")) return "Ссылка для входа не найдена или устарела.";
+  if (details.includes("expired-action-code") || details.includes("invalid-action-code")) return "Email-ссылка устарела. Получите новую ссылку.";
   if (details.includes("too-many-requests")) return "Слишком много попыток. Попробуйте позже.";
-  if (details.includes("quota-exceeded")) return "Лимит Firebase SMS исчерпан. Попробуйте позже.";
   if (details.includes("unauthorized-domain") || details.includes("app-not-authorized")) return "Этот домен не добавлен в Firebase Auth Authorized domains.";
-  if (details.includes("operation-not-allowed")) return "В Firebase не настроен Phone sign-in или SMS region policy. Откройте Authentication > Settings > SMS region policy и разрешите Uzbekistan (+998).";
-  if (details.includes("invalid-app-credential") || details.includes("missing-app-credential") || details.includes("captcha-check-failed")) {
-    return "Проверка reCAPTCHA/Firebase не прошла. Проверьте домен и Phone sign-in в Firebase Auth.";
-  }
+  if (details.includes("operation-not-allowed")) return "В Firebase не включен Email link sign-in. Откройте Authentication > Sign-in method > Email/Password и включите Email link.";
   if (details.includes("network-request-failed")) return "Проблема с интернет-соединением.";
   return `Не удалось войти. Код Firebase: ${details || "неизвестно"}`;
 }
@@ -487,50 +481,30 @@ function CustomerPanel({ isOpen, onClose }) {
     customerProfile,
     isCustomerReady,
     isCustomerLoading,
-    startCustomerSignIn,
-    confirmCustomerCode,
+    sendCustomerSignInLink,
     updateCustomerProfile,
     logoutCustomer,
   } = useCustomer();
-  const [phoneNumber, setPhoneNumber] = useState("+998 ");
-  const [code, setCode] = useState("");
+  const [emailAddress, setEmailAddress] = useState("");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
-  const [step, setStep] = useState("phone");
-  const [confirmationResult, setConfirmationResult] = useState(null);
+  const [step, setStep] = useState("email");
   const [statusText, setStatusText] = useState("");
   const [errorText, setErrorText] = useState("");
-  const recaptchaHostRef = useRef(null);
   const isProfileComplete = isCustomerProfileComplete(customerProfile);
-
-  function createRecaptchaSlot() {
-    const slotId = `customer-recaptcha-container-${Date.now()}-${Math.random().toString(16).slice(2)}`;
-    const host = recaptchaHostRef.current;
-
-    if (host) {
-      host.innerHTML = "";
-      const slot = document.createElement("div");
-      slot.id = slotId;
-      host.appendChild(slot);
-    }
-
-    return slotId;
-  }
 
   useEffect(() => {
     if (!isOpen) return;
 
     setErrorText("");
     setStatusText("");
-    setCode("");
-
     if (customerUser) {
       setStep(isProfileComplete ? "profile" : "details");
-      setPhoneNumber(customerUser.phoneNumber || "+998 ");
+      setEmailAddress(customerUser.email || customerProfile?.email || "");
       setFirstName(customerProfile?.firstName || "");
       setLastName(customerProfile?.lastName || "");
     } else {
-      setStep("phone");
+      setStep("email");
       setFirstName("");
       setLastName("");
     }
@@ -542,7 +516,7 @@ function CustomerPanel({ isOpen, onClose }) {
     if (!isCustomerLoading) onClose();
   };
 
-  async function handleSendCode(event) {
+  async function handleSendLink(event) {
     event.preventDefault();
     setErrorText("");
     setStatusText("");
@@ -552,44 +526,14 @@ function CustomerPanel({ isOpen, onClose }) {
       return;
     }
 
-    const normalizedPhone = normalizeCustomerPhone(phoneNumber);
-    if (!isValidUzbekPhoneNumber(normalizedPhone)) {
-      setErrorText(t.auth.invalidPhone);
+    if (!isCustomerEmailValid(emailAddress)) {
+      setErrorText(t.auth.invalidEmail);
       return;
     }
 
     try {
-      const confirmation = await startCustomerSignIn(normalizedPhone, createRecaptchaSlot(), language);
-      setConfirmationResult(confirmation);
-      setPhoneNumber(formatUzbekPhoneNumber(normalizedPhone));
-      setStep("code");
-      setStatusText(t.auth.codeSent);
-    } catch (error) {
-      setErrorText(getCustomerAuthErrorMessage(error, language));
-    }
-  }
-
-  async function handleConfirmCode(event) {
-    event.preventDefault();
-    setErrorText("");
-    setStatusText("");
-
-    if (!/^\d{6}$/.test(code.trim())) {
-      setErrorText(t.auth.invalidCode);
-      return;
-    }
-
-    try {
-      const profile = await confirmCustomerCode(confirmationResult, code);
-      if (isCustomerProfileComplete(profile)) {
-        setStatusText(t.auth.oldUserText);
-        setStep("profile");
-      } else {
-        setFirstName(profile?.firstName || "");
-        setLastName(profile?.lastName || "");
-        setStatusText(t.auth.newUserText);
-        setStep("details");
-      }
+      await sendCustomerSignInLink(emailAddress, language);
+      setStatusText(t.auth.linkSent);
     } catch (error) {
       setErrorText(getCustomerAuthErrorMessage(error, language));
     }
@@ -618,11 +562,9 @@ function CustomerPanel({ isOpen, onClose }) {
     setErrorText("");
     try {
       await logoutCustomer();
-      setConfirmationResult(null);
-      setStep("phone");
+      setStep("email");
       setStatusText("");
-      setCode("");
-      setPhoneNumber("+998 ");
+      setEmailAddress("");
     } catch (error) {
       setErrorText(getCustomerAuthErrorMessage(error, language));
     }
@@ -637,34 +579,33 @@ function CustomerPanel({ isOpen, onClose }) {
         </button>
 
         <div className="customer-modal__icon">
-          {customerUser ? <UserCheck size={27} aria-hidden="true" /> : <Phone size={27} aria-hidden="true" />}
+          {customerUser ? <UserCheck size={27} aria-hidden="true" /> : <Mail size={27} aria-hidden="true" />}
         </div>
         <h2 id="customer-modal-title">{customerUser ? t.auth.profileTitle : t.auth.title}</h2>
-        <p>{customerUser ? t.auth.oldUserText : t.auth.smsNotice}</p>
+        <p>{customerUser ? t.auth.oldUserText : t.auth.emailNotice}</p>
 
         {!isCustomerReady && <p className="form-status">{language === "uz" ? "Profil tekshirilmoqda..." : "Проверяем профиль..."}</p>}
 
-        {!customerUser && step === "phone" && (
-          <form className="customer-form" onSubmit={handleSendCode}>
+        {!customerUser && step === "email" && (
+          <form className="customer-form" onSubmit={handleSendLink}>
             <label>
-              {t.auth.phone}
+              {t.auth.email}
               <input
-                value={phoneNumber}
-                onChange={(event) => setPhoneNumber(formatUzbekPhoneNumber(event.target.value))}
-                placeholder={t.auth.phonePlaceholder}
-                inputMode="tel"
-                autoComplete="tel"
+                value={emailAddress}
+                onChange={(event) => setEmailAddress(event.target.value)}
+                placeholder={t.auth.emailPlaceholder}
+                inputMode="email"
+                autoComplete="email"
                 required
               />
             </label>
-            <div ref={recaptchaHostRef} className="customer-recaptcha" />
             <AppButton type="submit" icon={Send} disabled={isCustomerLoading}>
-              {isCustomerLoading ? t.auth.sending : t.auth.sendCode}
+              {isCustomerLoading ? t.auth.sending : t.auth.sendLink}
             </AppButton>
           </form>
         )}
 
-        {!customerUser && step === "code" && (
+        {false && (
           <form className="customer-form" onSubmit={handleConfirmCode}>
             <label>
               {t.auth.code}
@@ -690,7 +631,7 @@ function CustomerPanel({ isOpen, onClose }) {
           <form className="customer-form" onSubmit={handleSaveProfile}>
             <div className="customer-profile-card">
               <span>{t.auth.signedInAs}</span>
-              <strong>{customerUser.phoneNumber || phoneNumber}</strong>
+              <strong>{customerUser.email || customerProfile?.email || emailAddress}</strong>
             </div>
             <div className="customer-form__grid">
               <label>
@@ -2728,6 +2669,47 @@ export function BeautyHarmonyWebsite() {
   }, []);
 
   useEffect(() => {
+    let isMounted = true;
+
+    async function completeEmailLink() {
+      if (!hasCustomerAuthConfig()) return;
+
+      const hasEmailLink = await isCustomerEmailSignInLink().catch(() => false);
+      if (!hasEmailLink || !isMounted) return;
+
+      setIsCustomerLoading(true);
+      setCustomerError("");
+
+      try {
+        const result = await completeCustomerEmailLinkSignIn();
+        const profile = await getCustomerProfile(result.user);
+        if (!isMounted) return;
+
+        setCustomerUser(result.user);
+        setCustomerProfile(profile);
+        setIsCustomerReady(true);
+
+        if (window.history?.replaceState) {
+          window.history.replaceState({}, document.title, `${window.location.origin}${window.location.pathname}`);
+        }
+      } catch (error) {
+        if (!isMounted) return;
+        console.warn("[Customer] email link sign-in failed:", error);
+        setCustomerError(error?.message || "Email link sign-in failed");
+        setIsCustomerReady(true);
+      } finally {
+        if (isMounted) setIsCustomerLoading(false);
+      }
+    }
+
+    completeEmailLink();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
     if (!customerUser?.uid || !customerProfile) return;
     if (customerListsReadyUid === customerUser.uid) return;
 
@@ -2800,31 +2782,13 @@ export function BeautyHarmonyWebsite() {
     });
   }, []);
 
-  const startCustomerSignIn = useCallback(async (phoneNumber, recaptchaContainerId, nextLanguage) => {
+  const sendCustomerSignInLink = useCallback(async (email, nextLanguage) => {
     setIsCustomerLoading(true);
     setCustomerError("");
     try {
-      return await sendCustomerPhoneCode(phoneNumber, recaptchaContainerId, nextLanguage);
+      return await sendCustomerEmailLink(email, nextLanguage);
     } catch (error) {
-      setCustomerError(error?.message || "Phone sign-in failed");
-      throw error;
-    } finally {
-      setIsCustomerLoading(false);
-    }
-  }, []);
-
-  const confirmCustomerCode = useCallback(async (confirmationResult, code) => {
-    setIsCustomerLoading(true);
-    setCustomerError("");
-    try {
-      const result = await confirmCustomerPhoneCode(confirmationResult, code);
-      const profile = await getCustomerProfile(result.user);
-      setCustomerUser(result.user);
-      setCustomerProfile(profile);
-      setIsCustomerReady(true);
-      return profile;
-    } catch (error) {
-      setCustomerError(error?.message || "Code confirmation failed");
+      setCustomerError(error?.message || "Email link send failed");
       throw error;
     } finally {
       setIsCustomerLoading(false);
@@ -2917,20 +2881,18 @@ export function BeautyHarmonyWebsite() {
       isCustomerReady,
       isCustomerLoading,
       customerError,
-      startCustomerSignIn,
-      confirmCustomerCode,
+      sendCustomerSignInLink,
       updateCustomerProfile,
       logoutCustomer,
     }),
     [
-      confirmCustomerCode,
       customerError,
       customerProfile,
       customerUser,
       isCustomerLoading,
       isCustomerReady,
       logoutCustomer,
-      startCustomerSignIn,
+      sendCustomerSignInLink,
       updateCustomerProfile,
     ]
   );
