@@ -486,7 +486,7 @@ function CookieNotice() {
 
 function getCustomerAuthErrorMessage(error, language) {
   const code = String(error?.code || "").trim();
-  const message = String(error?.message || "").trim();
+  const message = String(typeof error === "string" ? error : error?.message || "").trim();
   const details = code || message;
 
   if (language === "uz") {
@@ -519,8 +519,10 @@ function CustomerPanel({ isOpen, onClose }) {
   const {
     customerUser,
     customerProfile,
+    customerError,
     isCustomerReady,
     isCustomerLoading,
+    completeCustomerSignInLink,
     sendCustomerSignInLink,
     updateCustomerProfile,
     logoutCustomer,
@@ -572,6 +574,16 @@ function CustomerPanel({ isOpen, onClose }) {
     }
 
     try {
+      const hasOpenEmailLink = await isCustomerEmailSignInLink().catch(() => false);
+      if (hasOpenEmailLink) {
+        const profile = await completeCustomerSignInLink(emailAddress);
+        setFirstName(profile?.firstName || "");
+        setLastName(profile?.lastName || "");
+        setStatusText(t.auth.oldUserText);
+        setStep(isCustomerProfileComplete(profile) ? "profile" : "details");
+        return;
+      }
+
       await sendCustomerSignInLink(emailAddress, language);
       setStatusText(t.auth.linkSent);
     } catch (error) {
@@ -694,6 +706,7 @@ function CustomerPanel({ isOpen, onClose }) {
         )}
 
         {statusText && <p className="form-status">{statusText}</p>}
+        {customerError && <p className="form-status is-error">{getCustomerAuthErrorMessage(customerError, language)}</p>}
         {errorText && <p className="form-status is-error">{errorText}</p>}
       </article>
     </div>
@@ -3933,6 +3946,13 @@ export function BeautyHarmonyWebsite() {
         console.warn("[Customer] email link sign-in failed:", error);
         setCustomerError(error?.message || "Email link sign-in failed");
         setIsCustomerReady(true);
+        window.setTimeout(() => {
+          requestCustomerSignIn(
+            error?.message === "EMAIL_LINK_EMAIL_MISSING"
+              ? "Введите email, на который пришла ссылка, чтобы завершить вход."
+              : "Не удалось завершить вход по ссылке. Попробуйте войти заново."
+          );
+        }, 0);
       } finally {
         if (isMounted) setIsCustomerLoading(false);
       }
@@ -4035,6 +4055,29 @@ export function BeautyHarmonyWebsite() {
     }
   }, []);
 
+  const completeCustomerSignInLink = useCallback(async (email) => {
+    setIsCustomerLoading(true);
+    setCustomerError("");
+    try {
+      const result = await completeCustomerEmailLinkSignIn(email);
+      const profile = await getCustomerProfile(result.user);
+      setCustomerUser(result.user);
+      setCustomerProfile(profile);
+      setCustomerListsReadyUid("");
+
+      if (window.history?.replaceState) {
+        window.history.replaceState({}, document.title, `${window.location.origin}${window.location.pathname}`);
+      }
+
+      return profile;
+    } catch (error) {
+      setCustomerError(error?.message || "Email link sign-in failed");
+      throw error;
+    } finally {
+      setIsCustomerLoading(false);
+    }
+  }, []);
+
   const updateCustomerProfile = useCallback(async (profilePatch) => {
     if (!customerUser) throw new Error("USER_MISSING");
     setIsCustomerLoading(true);
@@ -4123,6 +4166,7 @@ export function BeautyHarmonyWebsite() {
       isCustomerReady,
       isCustomerLoading,
       customerError,
+      completeCustomerSignInLink,
       sendCustomerSignInLink,
       updateCustomerProfile,
       logoutCustomer,
@@ -4131,6 +4175,7 @@ export function BeautyHarmonyWebsite() {
       customerError,
       customerProfile,
       customerUser,
+      completeCustomerSignInLink,
       isCustomerLoading,
       isCustomerReady,
       logoutCustomer,

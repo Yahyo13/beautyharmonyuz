@@ -4709,6 +4709,29 @@ footer p {
 }
 
 @media (max-width: 640px) {
+  .customer-modal,
+  .request-success-modal,
+  .admin-delete-modal {
+    align-items: start;
+    place-items: start center;
+    overflow-y: auto;
+    padding: 10px;
+  }
+
+  .customer-modal__card,
+  .request-success-modal__card,
+  .admin-delete-modal__card {
+    width: min(100%, 520px);
+    max-height: calc(100dvh - 20px);
+    overflow-y: auto;
+  }
+
+  .customer-modal__card h2 {
+    padding-right: 44px;
+    font-size: clamp(2rem, 12vw, 3.1rem);
+    line-height: 0.98;
+  }
+
   .topbar {
     top: 10px;
     width: calc(100% - 20px);
@@ -4769,6 +4792,7 @@ footer p {
   .brand-hero,
   .catalog-hero,
   .favorites-hero,
+  .b2b-hero,
   .about-company-page {
     min-height: auto;
     padding-top: 112px;
@@ -4923,6 +4947,50 @@ footer p {
 
   .partner-form {
     padding: 18px;
+  }
+
+  .b2b-hero {
+    align-items: start;
+    padding-inline: 16px;
+    background-position: center;
+  }
+
+  .b2b-hero h1 {
+    font-size: clamp(2.25rem, 12vw, 3.2rem);
+    line-height: 0.98;
+  }
+
+  .b2b-content {
+    gap: 18px;
+    padding: 36px 14px 54px;
+  }
+
+  .b2b-content .b2b-benefits {
+    gap: 12px;
+  }
+
+  .b2b-content .b2b-benefits article {
+    padding: 16px;
+  }
+
+  .partner-form label,
+  .format-options label {
+    min-width: 0;
+  }
+
+  .partner-form input,
+  .partner-form textarea {
+    min-width: 0;
+    font-size: 16px;
+  }
+
+  .turnstile-box {
+    width: 100%;
+    overflow: hidden;
+  }
+
+  .turnstile-box > div {
+    max-width: 100%;
   }
 
   .request-success-modal {
@@ -5661,6 +5729,23 @@ footer p {
 @media (max-width: 380px) {
   .brand-mark__logo {
     width: 92px;
+  }
+
+  .b2b-content {
+    padding-inline: 10px;
+  }
+
+  .partner-form {
+    padding: 12px;
+  }
+
+  .turnstile-box {
+    min-height: 62px;
+  }
+
+  .turnstile-box > div {
+    transform: scale(0.86);
+    transform-origin: left top;
   }
 
   .language-select select {
