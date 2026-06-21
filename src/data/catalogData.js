@@ -1171,8 +1171,8 @@ export function getProductDescription(product, language = "ru") {
   const description = getCategoryDescription(product.category, language);
   const suffix =
     language === "uz"
-      ? "Kartochka Uzum Marketdagi aniq tovarga olib boradi."
-      : "Карточка ведет на конкретный товар в Uzum Market.";
+      ? "Mahsulot kartasida asosiy parvarish ma'lumoti ko'rsatilgan."
+      : "В карточке товара указана основная информация по уходу.";
   return formatProductUnits(`${brandName}: ${description}. ${suffix}`, language);
 }
 
@@ -1189,7 +1189,7 @@ export function inferProductPurpose(category, language = "ru") {
 }
 
 export function formatPrice(price, language = "ru") {
-  if (!price) return language === "uz" ? "Narx Uzumda" : "Цена в Uzum";
+  if (!price) return language === "uz" ? "Narx aniqlanadi" : "Цена уточняется";
   return `${new Intl.NumberFormat(language === "uz" ? "uz-UZ" : "ru-RU").format(price)} ${language === "uz" ? "so'm" : "сум"}`;
 }
 

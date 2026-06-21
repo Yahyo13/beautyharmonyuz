@@ -12,6 +12,7 @@ import {
   HeartHandshake,
   Instagram,
   Leaf,
+  MessageCircle,
   Lock,
   LogOut,
   Mail,
@@ -80,11 +81,19 @@ import {
 import { fetchFirebaseCatalogProducts, saveFirebaseCatalogProduct } from "./data/firebaseCatalogApi";
 import {
   createCustomerOrder,
+  deleteCustomerOrder,
   fetchCustomerOrders,
+  fetchCustomerOrdersForCustomer,
   getOrderStatusLabel,
   orderStatuses,
   updateCustomerOrderStatus,
 } from "./data/customerOrdersApi";
+import {
+  fetchSupportThreads,
+  getCustomerSupportThread,
+  sendAdminSupportMessage,
+  sendCustomerSupportMessage,
+} from "./data/customerSupportApi";
 import {
   completeCustomerEmailLinkSignIn,
   getCustomerProfile,
@@ -223,6 +232,11 @@ function useCustomer() {
   return React.useContext(CustomerContext);
 }
 
+function requestCustomerSignIn(message = "") {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(new CustomEvent("beauty-harmony-auth-required", { detail: { message } }));
+}
+
 // Общая кнопка сайта. Используется как <a>, если передан href, и как <button> без href.
 function AppButton({ href, children, variant = "primary", icon: Icon, type = "button", onClick, disabled = false }) {
   const className = `app-button ${variant}`;
@@ -323,6 +337,7 @@ function Shell({ route, children }) {
   const { customerUser, customerProfile, isCustomerReady } = useCustomer();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isCustomerPanelOpen, setIsCustomerPanelOpen] = useState(false);
+  const [authNotice, setAuthNotice] = useState("");
   const isDarkMode = colorMode === "dark";
   const customerName = getCustomerDisplayName(customerProfile);
 
@@ -335,6 +350,18 @@ function Shell({ route, children }) {
       setIsCustomerPanelOpen(true);
     }
   }, [customerProfile, customerUser, isCustomerReady]);
+
+  useEffect(() => {
+    const handleAuthRequired = (event) => {
+      const message = event.detail?.message || (language === "uz" ? "Avval profilga kiring." : "Сначала войдите в профиль.");
+      setAuthNotice(message);
+      setIsCustomerPanelOpen(true);
+      window.setTimeout(() => setAuthNotice(""), 3200);
+    };
+
+    window.addEventListener("beauty-harmony-auth-required", handleAuthRequired);
+    return () => window.removeEventListener("beauty-harmony-auth-required", handleAuthRequired);
+  }, [language]);
 
   const scrollToHomeTop = () => {
     setIsMenuOpen(false);
@@ -405,10 +432,10 @@ function Shell({ route, children }) {
           {cartCount > 0 && <b>{cartCount}</b>}
         </a>
 
-        <button className="profile-top-button" type="button" onClick={() => setIsCustomerPanelOpen(true)}>
+        <a className={`profile-top-button${route === "/profile" ? " is-active" : ""}`} href="#/profile" onClick={closeMenu}>
           <UserRound size={17} aria-hidden="true" />
           <span>{customerUser ? customerName || t.common.profile : t.common.signIn}</span>
-        </button>
+        </a>
 
         <button
           className="menu-toggle"
@@ -423,6 +450,8 @@ function Shell({ route, children }) {
       </nav>
 
       {children}
+
+      {authNotice && <div className="auth-required-toast">{authNotice}</div>}
 
       <Footer />
       <CookieNotice />
@@ -782,7 +811,7 @@ function HomePage() {
               <span>{t.home.statCountries}</span>
             </div>
             <div>
-              <strong>Uzum</strong>
+              <strong>Online</strong>
               <span>{t.home.statUzum}</span>
             </div>
           </div>
@@ -878,9 +907,9 @@ function CatalogPreview() {
   return (
     <section className="catalog-preview reveal">
       <div className="catalog-preview__copy">
-        <span>{t.catalogPreview.label}</span>
+        <span>{language === "uz" ? "Katalogdagi tovarlar" : "Товары каталога"}</span>
         <h2>{t.catalogPreview.title}</h2>
-        <p>{t.catalogPreview.text}</p>
+        <p>{language === "uz" ? "Kartochkalarda narx, rasm, brend va savatga qo'shish tugmasi bor." : "В карточках есть цена, фото, бренд и кнопка добавления в корзину."}</p>
         <AppButton href="#/catalog" icon={ShoppingBag}>
           {t.common.openCatalog}
         </AppButton>
@@ -888,7 +917,7 @@ function CatalogPreview() {
 
       <div className="catalog-preview__grid">
         {previewProducts.map((product) => (
-          <a className={`mini-product ${getProductTheme(product)}`} href={product.href} target="_blank" rel="noreferrer" key={product.id}>
+          <a className={`mini-product ${getProductTheme(product)}`} href="#/catalog" key={product.id}>
             <img src={product.image} alt={getProductTitle(product, language)} loading="lazy" />
             <span>{getProductBrand(product) ? getBrandCopy(getProductBrand(product), language).localName : product.brand}</span>
             <strong>{getProductTitle(product, language)}</strong>
@@ -1172,6 +1201,9 @@ function CatalogPage() {
       : language === "uz"
         ? catalogFallbackSource.noteUz
         : catalogFallbackSource.noteRu;
+  const catalogSourceText = language === "uz"
+    ? "Katalog Beauty Harmony ma'lumotlar bazasidan yuklandi. Narx va tavsiflarni admin panelda yangilash mumkin."
+    : "Каталог загружен из базы Beauty Harmony. Цены и описания можно обновлять в админ-панели.";
 
   return (
     <>
@@ -1179,14 +1211,11 @@ function CatalogPage() {
         <div className="catalog-hero__copy reveal is-visible">
           <span className="eyebrow">
             <Tags size={17} aria-hidden="true" />
-            {t.catalog.eyebrow}
+            {language === "uz" ? "Beauty Harmony katalogi" : "Каталог Beauty Harmony"}
           </span>
           <h1>{t.catalog.title}</h1>
-          <p>{t.catalog.intro}</p>
+          <p>{language === "uz" ? "Brend, kategoriya, narx va vazifa bo'yicha tanlash uchun qulay mahsulot vitrinası." : "Удобная витрина товаров с фильтрами по бренду, категории, цене и назначению."}</p>
           <div className="hero-actions">
-            <AppButton href={uzumShopUrl} icon={Store}>
-              {t.common.openShop}
-            </AppButton>
             <AppButton href="#/brands" variant="secondary" icon={Palette}>
               {t.common.viewBrands}
             </AppButton>
@@ -1249,7 +1278,7 @@ function CatalogPage() {
           <label className="catalog-select">
             {t.catalog.sort}
             <select value={sort} onChange={(event) => setSort(event.target.value)}>
-              <option value="default">{t.catalog.defaultSort}</option>
+              <option value="default">{language === "uz" ? "Standart tartib" : "По умолчанию"}</option>
               <option value="price-asc">{t.catalog.priceAsc}</option>
               <option value="price-desc">{t.catalog.priceDesc}</option>
               <option value="name">{t.catalog.byName}</option>
@@ -1269,7 +1298,7 @@ function CatalogPage() {
             </span>
             <h2>{t.catalog.found}</h2>
           </div>
-          <p>{sourceNote}</p>
+          <p>{catalogSourceText}</p>
         </div>
 
         {filteredProducts.length > 0 ? (
@@ -1290,14 +1319,14 @@ function CatalogPage() {
         )}
       </section>
 
-      <MarketCta />
     </>
   );
 }
 
 function FavoriteButton({ productId, className = "" }) {
-  const { t } = useLocale();
+  const { language, t } = useLocale();
   const { isFavorite, toggleFavorite } = useFavorites();
+  const { customerUser } = useCustomer();
   const [isAnimating, setIsAnimating] = useState(false);
   const favorite = isFavorite(productId);
   const label = favorite ? t.common.removeFavorite : t.common.addFavorite;
@@ -1311,6 +1340,10 @@ function FavoriteButton({ productId, className = "" }) {
   function handleFavoriteClick(event) {
     event.preventDefault();
     event.stopPropagation();
+    if (!customerUser) {
+      requestCustomerSignIn(language === "uz" ? "Saralanganlarga qo'shish uchun avval profilga kiring." : "Сначала войдите в профиль, чтобы добавить товар в избранное.");
+      return;
+    }
     toggleFavorite(productId);
     setIsAnimating(false);
     window.requestAnimationFrame(() => setIsAnimating(true));
@@ -1335,13 +1368,18 @@ function FavoriteButton({ productId, className = "" }) {
 }
 
 function AddToCartButton({ product }) {
-  const { t } = useLocale();
+  const { language, t } = useLocale();
   const { cartItems, addToCart } = useCart();
+  const { customerUser } = useCustomer();
   const isInCart = cartItems.some((item) => item.productId === product.id);
 
   function handleAddToCart(event) {
     event.preventDefault();
     event.stopPropagation();
+    if (!customerUser) {
+      requestCustomerSignIn(language === "uz" ? "Savatga qo'shish uchun avval profilga kiring." : "Сначала войдите в профиль, чтобы добавить товар в корзину.");
+      return;
+    }
     addToCart(product.id);
   }
 
@@ -1409,9 +1447,6 @@ function CatalogProductCard({ product }) {
               <div>
                 <span>{t.common.normalPrice}</span>
                 <strong>{formatPrice(product.price, language)}</strong>
-                {product.uzumCardPrice && product.uzumCardPrice < product.price && (
-                  <em>Uzum karta: {formatPrice(product.uzumCardPrice, language)}</em>
-                )}
               </div>
             )}
             <AddToCartButton product={product} />
@@ -1475,9 +1510,6 @@ function BrandPage({ brand }) {
           {copy.slug === "the-doctor" && brandAlias && <strong className="brand-alias">{brandAlias}</strong>}
           <p>{copy.intro}</p>
           <div className="hero-actions">
-            <AppButton href={uzumShopUrl} icon={ShoppingBag}>
-              {t.common.productsInUzum}
-            </AppButton>
             <AppButton href="#/b2b" variant="secondary" icon={HeartHandshake}>
               {t.common.b2bRequest}
             </AppButton>
@@ -1755,6 +1787,242 @@ function FavoritesPage() {
   );
 }
 
+function SupportChatPanel({ compact = false }) {
+  const { language } = useLocale();
+  const { customerUser, customerProfile } = useCustomer();
+  const [thread, setThread] = useState(null);
+  const [message, setMessage] = useState("");
+  const [status, setStatus] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [isSending, setIsSending] = useState(false);
+
+  useEffect(() => {
+    let isMounted = true;
+    if (!customerUser) {
+      setThread(null);
+      return () => {
+        isMounted = false;
+      };
+    }
+
+    setIsLoading(true);
+    getCustomerSupportThread(customerUser, customerProfile)
+      .then((nextThread) => {
+        if (isMounted) setThread(nextThread);
+      })
+      .catch(() => {
+        if (isMounted) setStatus(language === "uz" ? "Chatni yuklab bo'lmadi." : "Не удалось загрузить чат.");
+      })
+      .finally(() => {
+        if (isMounted) setIsLoading(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [customerProfile, customerUser, language]);
+
+  async function handleSendMessage(event) {
+    event.preventDefault();
+    setStatus("");
+
+    if (!customerUser) {
+      requestCustomerSignIn(language === "uz" ? "Qo'llab-quvvatlashga yozish uchun profilga kiring." : "Войдите в профиль, чтобы написать поддержке.");
+      return;
+    }
+
+    if (!message.trim()) return;
+    setIsSending(true);
+
+    try {
+      const savedThread = await sendCustomerSupportMessage({ customerUser, customerProfile, text: message });
+      setThread(savedThread);
+      setMessage("");
+    } catch {
+      setStatus(language === "uz" ? "Xabar yuborilmadi." : "Сообщение не отправилось.");
+    } finally {
+      setIsSending(false);
+    }
+  }
+
+  return (
+    <section className={`support-panel${compact ? " is-compact" : ""}`}>
+      <div className="support-panel__head">
+        <span>
+          <MessageCircle size={18} aria-hidden="true" />
+          {language === "uz" ? "Qo'llab-quvvatlash" : "Поддержка"}
+        </span>
+        <strong>{isLoading ? (language === "uz" ? "Yuklanmoqda" : "Загрузка") : `${thread?.messages?.length || 0}`}</strong>
+      </div>
+
+      <div className="support-messages">
+        {thread?.messages?.length ? (
+          thread.messages.map((item) => (
+            <article className={`support-message is-${item.author}`} key={item.id}>
+              <span>{item.author === "admin" ? "Beauty Harmony" : language === "uz" ? "Siz" : "Вы"}</span>
+              <p>{item.text}</p>
+              <small>{formatRequestDate(item.createdAtIso)}</small>
+            </article>
+          ))
+        ) : (
+          <p className="support-empty">
+            {language === "uz" ? "Savolingizni yozing, javob shu yerda ko'rinadi." : "Напишите вопрос, ответ появится здесь."}
+          </p>
+        )}
+      </div>
+
+      <form className="support-form" onSubmit={handleSendMessage}>
+        <textarea
+          value={message}
+          onChange={(event) => setMessage(event.target.value)}
+          placeholder={language === "uz" ? "Xabar yozing" : "Напишите сообщение"}
+          rows={3}
+        />
+        <AppButton type="submit" icon={Send} disabled={isSending || !message.trim()}>
+          {isSending ? (language === "uz" ? "Yuborilmoqda..." : "Отправляем...") : language === "uz" ? "Yuborish" : "Отправить"}
+        </AppButton>
+      </form>
+
+      {status && <p className="form-status is-error">{status}</p>}
+    </section>
+  );
+}
+
+function ProfilePage() {
+  const { language, t } = useLocale();
+  const { customerUser, customerProfile, logoutCustomer } = useCustomer();
+  const [orders, setOrders] = useState([]);
+  const [isLoadingOrders, setIsLoadingOrders] = useState(false);
+  const [orderStatus, setOrderStatus] = useState("");
+  const [isPanelOpen, setIsPanelOpen] = useState(false);
+  const customerName = getCustomerDisplayName(customerProfile);
+
+  useEffect(() => {
+    let isMounted = true;
+    if (!customerUser) {
+      setOrders([]);
+      return () => {
+        isMounted = false;
+      };
+    }
+
+    setIsLoadingOrders(true);
+    fetchCustomerOrdersForCustomer(customerUser)
+      .then((nextOrders) => {
+        if (isMounted) setOrders(nextOrders);
+      })
+      .catch(() => {
+        if (isMounted) setOrderStatus(language === "uz" ? "Buyurtmalar yuklanmadi." : "Заказы не загрузились.");
+      })
+      .finally(() => {
+        if (isMounted) setIsLoadingOrders(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [customerUser, language]);
+
+  const activeOrders = orders.filter((order) => !["delivered", "cancelled"].includes(order.status));
+  const closedOrders = orders.filter((order) => ["delivered", "cancelled"].includes(order.status));
+
+  if (!customerUser) {
+    return (
+      <section className="profile-page profile-page--guest">
+        <div className="profile-hero reveal is-visible">
+          <span className="eyebrow">
+            <UserRound size={17} aria-hidden="true" />
+            {t.common.profile}
+          </span>
+          <h1>{language === "uz" ? "Profilga kiring" : "Войдите в профиль"}</h1>
+          <p>{language === "uz" ? "Savat, saralanganlar, buyurtmalar tarixi va qo'llab-quvvatlash chati profilingizda saqlanadi." : "Корзина, избранное, история заказов и чат поддержки сохраняются в вашем профиле."}</p>
+          <AppButton onClick={() => requestCustomerSignIn(language === "uz" ? "Profilga kirish kerak." : "Сначала войдите в профиль.")} icon={Mail}>
+            {t.common.signIn}
+          </AppButton>
+        </div>
+      </section>
+    );
+  }
+
+  return (
+    <section className="profile-page">
+      <header className="profile-hero reveal is-visible">
+        <div>
+          <span className="eyebrow">
+            <UserCheck size={17} aria-hidden="true" />
+            {t.common.profile}
+          </span>
+          <h1>{customerName || customerUser.email}</h1>
+          <p>{customerUser.email}</p>
+        </div>
+        <div className="profile-actions">
+          <AppButton onClick={() => setIsPanelOpen(true)} icon={Edit3} variant="secondary">
+            {language === "uz" ? "Profilni tahrirlash" : "Изменить профиль"}
+          </AppButton>
+          <AppButton onClick={logoutCustomer} icon={LogOut} variant="ghost">
+            {t.common.signOut}
+          </AppButton>
+        </div>
+      </header>
+
+      <div className="profile-grid">
+        <section className="profile-card">
+          <span>{language === "uz" ? "Faol buyurtmalar" : "Активные заказы"}</span>
+          <strong>{isLoadingOrders ? "..." : activeOrders.length}</strong>
+          <p>{language === "uz" ? "Statuslar shu yerda yangilanadi." : "Здесь отображаются текущие статусы."}</p>
+        </section>
+        <section className="profile-card">
+          <span>{language === "uz" ? "Jami buyurtmalar" : "Всего заказов"}</span>
+          <strong>{orders.length}</strong>
+          <p>{language === "uz" ? "Tarix profilingizga bog'langan." : "История привязана к вашему профилю."}</p>
+        </section>
+      </div>
+
+      <section className="profile-orders">
+        <div className="section-heading compact">
+          <span>{language === "uz" ? "Buyurtmalar" : "Заказы"}</span>
+          <h2>{language === "uz" ? "Status va tarix" : "Статус и история"}</h2>
+        </div>
+
+        {orderStatus && <p className="form-status is-error">{orderStatus}</p>}
+
+        {[...activeOrders, ...closedOrders].length > 0 ? (
+          <div className="profile-order-list">
+            {[...activeOrders, ...closedOrders].map((order) => (
+              <article className="profile-order-card" key={order.id}>
+                <div>
+                  <span>#{order.id.slice(0, 8)}</span>
+                  <strong>{getOrderStatusLabel(order.status, language)}</strong>
+                </div>
+                <p>{formatRequestDate(order.createdAtIso)} · {formatPrice(order.total, language)}</p>
+                <ul>
+                  {(order.items || []).slice(0, 4).map((item) => (
+                    <li key={`${order.id}-${item.productId}`}>
+                      {item.quantity} x {language === "uz" ? item.titleUz || item.titleRu : item.titleRu || item.titleUz}
+                    </li>
+                  ))}
+                </ul>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <div className="catalog-empty reveal is-visible">
+            <ClipboardList size={34} aria-hidden="true" />
+            <h2>{language === "uz" ? "Buyurtmalar yo'q" : "Заказов пока нет"}</h2>
+            <p>{language === "uz" ? "Katalogdan tovar tanlab, savat orqali buyurtma bering." : "Выберите товары в каталоге и оформите их через корзину."}</p>
+            <AppButton href="#/catalog" icon={ShoppingBag}>
+              {t.favorites.openCatalog}
+            </AppButton>
+          </div>
+        )}
+      </section>
+
+      <SupportChatPanel />
+      <CustomerPanel isOpen={isPanelOpen} onClose={() => setIsPanelOpen(false)} />
+    </section>
+  );
+}
+
 function CartPage() {
   const { language, t } = useLocale();
   const { customerUser, customerProfile } = useCustomer();
@@ -1823,6 +2091,12 @@ function CartPage() {
 
     if (!cartProducts.length) {
       setCheckoutError(language === "uz" ? "Savat bo'sh." : "Корзина пустая.");
+      return;
+    }
+
+    if (!customerUser) {
+      requestCustomerSignIn(language === "uz" ? "Buyurtma berish uchun profilga kiring." : "Сначала войдите в профиль, чтобы оформить заказ.");
+      setCheckoutError(language === "uz" ? "Buyurtma uchun profilga kiring." : "Для оформления заказа войдите в профиль.");
       return;
     }
 
@@ -1931,7 +2205,7 @@ function CartPage() {
 
             <aside className="cart-summary-panel">
               <span>{t.cart.total}</span>
-              <strong>{cartTotal ? formatPrice(cartTotal, language) : language === "uz" ? "Narx Uzumda" : "Цена в Uzum"}</strong>
+              <strong>{cartTotal ? formatPrice(cartTotal, language) : language === "uz" ? "Narx aniqlanadi" : "Цена уточняется"}</strong>
               <p>{language === "uz" ? "Ma'lumotlarni kiriting, buyurtma admin paneldagi alohida bo'limga tushadi." : "Заполните данные, заказ попадёт в отдельную вкладку админки."}</p>
 
               <form className="checkout-form" onSubmit={handleCheckoutSubmit}>
@@ -2682,7 +2956,7 @@ function createEmptyAdminProductForm() {
     price: "",
     uzumCardPrice: "",
     image: "",
-    href: uzumShopUrl,
+    href: "",
     purposeRu: "",
     purposeUz: "",
     descriptionRu: "",
@@ -2705,7 +2979,7 @@ function productToAdminForm(product = {}) {
     price: product.price || "",
     uzumCardPrice: product.uzumCardPrice || "",
     image: product.image || "",
-    href: product.href || uzumShopUrl,
+    href: product.href || "",
     purposeRu: product.purposeRu || product.purpose || "",
     purposeUz: product.purposeUz || "",
     descriptionRu: product.descriptionRu || product.description || "",
@@ -2739,6 +3013,7 @@ function AdminDashboard() {
   const [activeTab, setActiveTab] = useState("orders");
   const [requests, setRequests] = useState([]);
   const [orders, setOrders] = useState([]);
+  const [supportThreads, setSupportThreads] = useState([]);
   const [adminProducts, setAdminProducts] = useState([]);
   const [query, setQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState("all");
@@ -2747,6 +3022,10 @@ function AdminDashboard() {
   const [isLoading, setIsLoading] = useState(false);
   const [updatingOrderId, setUpdatingOrderId] = useState("");
   const [savingProduct, setSavingProduct] = useState(false);
+  const [deletingOrderId, setDeletingOrderId] = useState("");
+  const [selectedThreadId, setSelectedThreadId] = useState("");
+  const [supportReply, setSupportReply] = useState("");
+  const [isSendingSupportReply, setIsSendingSupportReply] = useState(false);
   const [productForm, setProductForm] = useState(createEmptyAdminProductForm);
   const [editingProductId, setEditingProductId] = useState("");
   const [productStatus, setProductStatus] = useState("");
@@ -2772,14 +3051,17 @@ function AdminDashboard() {
     setLoadStatus("");
 
     try {
-      const [nextRequests, nextOrders, nextProducts] = await Promise.all([
+      const [nextRequests, nextOrders, nextSupportThreads, nextProducts] = await Promise.all([
         fetchPartnerRequests().catch(() => []),
         fetchCustomerOrders().catch(() => []),
+        fetchSupportThreads().catch(() => []),
         fetchFirebaseCatalogProducts().catch(() => []),
       ]);
 
       setRequests(nextRequests.filter(isLikelyPartnerRequest));
       setOrders(nextOrders);
+      setSupportThreads(nextSupportThreads);
+      setSelectedThreadId((current) => current || nextSupportThreads[0]?.id || "");
       setAdminProducts(nextProducts.map(normalizeCatalogProduct));
     } catch (error) {
       console.warn("[Admin] dashboard load failed:", error);
@@ -2819,6 +3101,7 @@ function AdminDashboard() {
     setSession(null);
     setRequests([]);
     setOrders([]);
+    setSupportThreads([]);
     setAdminProducts([]);
   };
 
@@ -2887,6 +3170,10 @@ function AdminDashboard() {
   }, [requests]);
 
   const ordersTotal = useMemo(() => orders.reduce((sum, order) => sum + (Number(order.total) || 0), 0), [orders]);
+  const selectedThread = useMemo(
+    () => supportThreads.find((thread) => thread.id === selectedThreadId) || supportThreads[0] || null,
+    [selectedThreadId, supportThreads]
+  );
 
   const deleteRequest = async (request) => {
     if (!request?.id) return;
@@ -2912,6 +3199,47 @@ function AdminDashboard() {
       setLoadStatus("Не удалось обновить статус заказа.");
     } finally {
       setUpdatingOrderId("");
+    }
+  };
+
+  const removeOrder = async (order) => {
+    if (!order?.id) return;
+    if (!window.confirm(`Удалить заказ #${order.id.slice(0, 8)}?`)) return;
+
+    setDeletingOrderId(order.id);
+    setLoadStatus("");
+
+    try {
+      await deleteCustomerOrder(order.id);
+      setOrders((current) => current.filter((item) => item.id !== order.id));
+    } catch (error) {
+      console.warn("[Admin] order delete failed:", error);
+      setLoadStatus("Не удалось удалить заказ.");
+    } finally {
+      setDeletingOrderId("");
+    }
+  };
+
+  const replyToSupportThread = async (event) => {
+    event.preventDefault();
+    if (!selectedThread?.id || !supportReply.trim()) return;
+
+    setIsSendingSupportReply(true);
+    setLoadStatus("");
+
+    try {
+      const savedThread = await sendAdminSupportMessage({
+        threadId: selectedThread.id,
+        text: supportReply,
+        adminName: session?.name || "Beauty Harmony",
+      });
+      setSupportThreads((current) => current.map((thread) => (thread.id === savedThread.id ? { ...thread, ...savedThread } : thread)));
+      setSupportReply("");
+    } catch (error) {
+      console.warn("[Admin] support reply failed:", error);
+      setLoadStatus("Не удалось отправить сообщение поддержки.");
+    } finally {
+      setIsSendingSupportReply(false);
     }
   };
 
@@ -3025,7 +3353,7 @@ function AdminDashboard() {
             <ShieldCheck size={17} aria-hidden="true" />
             Admin
           </span>
-          <h1>{activeTab === "orders" ? "Заказы" : activeTab === "products" ? "Товары" : "B2B заявки"}</h1>
+          <h1>{activeTab === "orders" ? "Заказы" : activeTab === "products" ? "Товары" : activeTab === "support" ? "Поддержка" : "B2B заявки"}</h1>
           <p>B2B заявки, заказы из корзины и каталог товаров теперь разделены по вкладкам.</p>
         </div>
 
@@ -3049,6 +3377,9 @@ function AdminDashboard() {
         <button className={activeTab === "products" ? "is-active" : ""} type="button" onClick={() => setActiveTab("products")}>
           <PackagePlus size={17} aria-hidden="true" /> Товары
         </button>
+        <button className={activeTab === "support" ? "is-active" : ""} type="button" onClick={() => setActiveTab("support")}>
+          <MessageCircle size={17} aria-hidden="true" /> Поддержка
+        </button>
       </div>
 
       <div className="admin-stats">
@@ -3064,9 +3395,13 @@ function AdminDashboard() {
           <strong>{adminProducts.length}</strong>
           <span>товаров в Firebase</span>
         </div>
+        <div>
+          <strong>{supportThreads.length}</strong>
+          <span>чатов поддержки</span>
+        </div>
       </div>
 
-      <div className="admin-toolbar admin-toolbar--wide">
+      {activeTab !== "support" && <div className="admin-toolbar admin-toolbar--wide">
         <label>
           Поиск
           <span>
@@ -3109,9 +3444,72 @@ function AdminDashboard() {
             Новый товар
           </button>
         )}
-      </div>
+      </div>}
 
       {loadStatus && <p className="admin-error">{loadStatus}</p>}
+
+      {activeTab === "support" && <section className="admin-support-inline">
+        <div className="section-heading compact">
+          <span>Поддержка</span>
+          <h2>Чаты покупателей</h2>
+        </div>
+
+        {supportThreads.length > 0 ? (
+          <div className="admin-support-layout">
+            <div className="admin-support-list">
+              {supportThreads.map((thread) => (
+                <button
+                  className={selectedThread?.id === thread.id ? "is-active" : ""}
+                  type="button"
+                  key={thread.id}
+                  onClick={() => setSelectedThreadId(thread.id)}
+                >
+                  <strong>{thread.customerName || thread.customerEmail || thread.id}</strong>
+                  <span>{thread.messages?.at(-1)?.text || "Нет сообщений"}</span>
+                  {thread.unreadByAdmin > 0 && <b>{thread.unreadByAdmin}</b>}
+                </button>
+              ))}
+            </div>
+
+            <section className="admin-support-thread">
+              {selectedThread ? (
+                <>
+                  <div className="admin-support-thread__head">
+                    <span>{selectedThread.customerName || "Покупатель"}</span>
+                    <strong>{selectedThread.customerEmail}</strong>
+                  </div>
+                  <div className="support-messages">
+                    {(selectedThread.messages || []).map((item) => (
+                      <article className={`support-message is-${item.author}`} key={item.id}>
+                        <span>{item.author === "admin" ? "Beauty Harmony" : selectedThread.customerName || "Покупатель"}</span>
+                        <p>{item.text}</p>
+                        <small>{formatRequestDate(item.createdAtIso)}</small>
+                      </article>
+                    ))}
+                  </div>
+                  <form className="support-form" onSubmit={replyToSupportThread}>
+                    <textarea value={supportReply} onChange={(event) => setSupportReply(event.target.value)} rows={3} placeholder="Ответ поддержки" />
+                    <AppButton type="submit" icon={Send} disabled={isSendingSupportReply || !supportReply.trim()}>
+                      {isSendingSupportReply ? "Отправляем..." : "Ответить"}
+                    </AppButton>
+                  </form>
+                </>
+              ) : (
+                <div className="admin-empty">
+                  <MessageCircle size={32} aria-hidden="true" />
+                  <h2>Выберите диалог</h2>
+                </div>
+              )}
+            </section>
+          </div>
+        ) : (
+          <div className="admin-empty">
+            <MessageCircle size={32} aria-hidden="true" />
+            <h2>Чатов пока нет</h2>
+            <p>Когда пользователь напишет в поддержку, диалог появится здесь.</p>
+          </div>
+        )}
+      </section>}
 
       {activeTab === "orders" && (
         <div className="admin-request-grid admin-order-grid">
@@ -3161,7 +3559,7 @@ function AdminDashboard() {
                     className="admin-status-select"
                     value={order.status || "new"}
                     onChange={(event) => changeOrderStatus(order.id, event.target.value)}
-                    disabled={updatingOrderId === order.id}
+                    disabled={updatingOrderId === order.id || deletingOrderId === order.id}
                   >
                     {orderStatuses.map((status) => (
                       <option value={status.value} key={status.value}>
@@ -3169,6 +3567,10 @@ function AdminDashboard() {
                       </option>
                     ))}
                   </select>
+                  <button className="admin-delete-button" type="button" onClick={() => removeOrder(order)} disabled={deletingOrderId === order.id}>
+                    <Trash2 size={17} aria-hidden="true" />
+                    <span>{deletingOrderId === order.id ? "Удаляем..." : "Удалить"}</span>
+                  </button>
                 </div>
               </article>
             ))
@@ -3301,7 +3703,7 @@ function AdminDashboard() {
 
             <label>
               Ссылка
-              <input name="href" value={productForm.href} onChange={handleProductFormChange} placeholder={uzumShopUrl} />
+              <input name="href" value={productForm.href} onChange={handleProductFormChange} placeholder="https://..." />
             </label>
 
             <label>
@@ -3677,6 +4079,7 @@ export function BeautyHarmonyWebsite() {
     if (route === "/brands") return <BrandsSection />;
     if (route === "/about") return <AboutCompanyPage />;
     if (route === "/favorites") return <FavoritesPage />;
+    if (route === "/profile") return <ProfilePage />;
     if (route === "/cart") return <CartPage />;
     if (route === "/b2b") return <B2BPage />;
     if (route === "/admin") return <AdminDashboard />;

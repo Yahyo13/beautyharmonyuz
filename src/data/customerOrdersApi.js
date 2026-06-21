@@ -114,6 +114,29 @@ export async function fetchCustomerOrders() {
     .sort((left, right) => new Date(right.createdAtIso || 0).getTime() - new Date(left.createdAtIso || 0).getTime());
 }
 
+export async function fetchCustomerOrdersForCustomer(customerUser) {
+  if (!customerUser?.uid && !customerUser?.email) return [];
+
+  const client = await getFirestoreClient();
+  if (!client) return [];
+
+  const { db, firestoreApi } = client;
+  const ordersRef = firestoreApi.collection(db, "orders");
+  let snapshot;
+
+  try {
+    snapshot = await firestoreApi.getDocs(firestoreApi.query(ordersRef, firestoreApi.where("customerUid", "==", customerUser.uid)));
+  } catch {
+    snapshot = await firestoreApi.getDocs(ordersRef);
+  }
+
+  const email = String(customerUser.email || "").toLowerCase();
+  return snapshot.docs
+    .map(normalizeOrder)
+    .filter((order) => order.customerUid === customerUser.uid || String(order.customerEmail || "").toLowerCase() === email)
+    .sort((left, right) => new Date(right.createdAtIso || 0).getTime() - new Date(left.createdAtIso || 0).getTime());
+}
+
 export async function updateCustomerOrderStatus(orderId, status) {
   const nextStatus = orderStatuses.some((item) => item.value === status) ? status : "new";
   const client = await getFirestoreClient();
@@ -134,4 +157,13 @@ export async function updateCustomerOrderStatus(orderId, status) {
   );
 
   return { id: orderId, status: nextStatus, updatedAtIso };
+}
+
+export async function deleteCustomerOrder(orderId) {
+  const client = await getFirestoreClient();
+  if (!client) throw new Error("FIREBASE_NOT_CONFIGURED");
+
+  const { db, firestoreApi } = client;
+  await firestoreApi.deleteDoc(firestoreApi.doc(db, "orders", orderId));
+  return { id: orderId };
 }

@@ -21,7 +21,7 @@ export const ui = {
     },
     common: {
       allBrands: "Все бренды",
-      productsInUzum: "Товары в Uzum",
+      productsInUzum: "Товары бренда",
       b2bRequest: "Заявка B2B",
       openShop: "Открыть магазин",
       viewBrands: "Смотреть бренды",
@@ -118,10 +118,10 @@ export const ui = {
         "Elfa Group - международная косметическая компания с 6 фабриками в Украине, Польше и Словакии. На официальном сайте указаны 26 лет на рынке, 63 страны, 23 бренда и 3000 инновационных формул.",
     },
     catalogPreview: {
-      label: "Товары из Uzum",
+      label: "Товары каталога",
       title: "Каталог с поиском, категориями и сортировкой по цене",
       text:
-        "В отдельной странице собраны карточки Beauty Harmony: цена, фото, бренд, назначение и кнопка покупки, которая ведет прямо в Uzum Market.",
+        "В отдельной странице собраны карточки Beauty Harmony: цена, фото, бренд, назначение и кнопка добавления в корзину.",
     },
     brandsPage: {
       label: "Бренды",
@@ -130,7 +130,7 @@ export const ui = {
       more: "Подробнее о бренде",
     },
     catalog: {
-      eyebrow: "Каталог Beauty Harmony в Uzum Market",
+      eyebrow: "Каталог Beauty Harmony",
       title: "Каталог товаров",
       intro:
         "Товары с реальными ссылками, фото и ценами из магазина Beauty Harmony: шампуни, кремы, уход за лицом, депиляция, гели для душа, интимная гигиена и бытовая химия.",
@@ -141,7 +141,7 @@ export const ui = {
       searchLabel: "Поиск товаров",
       category: "Категория",
       sort: "Сортировка",
-      defaultSort: "Как в Uzum",
+      defaultSort: "По умолчанию",
       priceAsc: "Цена: от меньшей к большей",
       priceDesc: "Цена: от большей к меньшей",
       byName: "По названию",
@@ -151,7 +151,7 @@ export const ui = {
       emptyText: "Попробуйте изменить запрос или выбрать другую категорию.",
       clearFilters: "Очистить фильтры",
       sourceNote:
-        "Цены, изображения и ссылки взяты со страниц магазина Beauty Harmony в Uzum Market 24 мая 2026. Основной прайс - обычная цена, цена Uzum-karta показана отдельно.",
+        "Цены, изображения и описания загружаются из базы Beauty Harmony. Данные можно обновлять в админ-панели.",
     },
     brandPage: {
       essence: "Суть бренда",
@@ -182,7 +182,7 @@ export const ui = {
         "В каталоге представлены Dr.Sante, Fresh Juice, The Doctor, Green Pharmacy, Lady Caramel, Cool Men и Pink Elephant. Для каждого направления подобрана своя визуальная подача и структура товара.",
       logisticsTitle: "Для розницы и B2B",
       logisticsText:
-        "Beauty Harmony ведет покупателя в Uzum Market, а для партнеров оставляет отдельную B2B-страницу с заявкой на опт, поставки, розничные сети и маркетплейсы.",
+        "Beauty Harmony дает покупателю понятный каталог, а для партнеров оставляет отдельную B2B-страницу с заявкой на опт, поставки, розничные сети и маркетплейсы.",
       stats: [
         ["7", "брендов в портфеле"],
         ["300+", "товаров в каталоге"],
@@ -261,7 +261,7 @@ export const ui = {
     },
     common: {
       allBrands: "Barcha brendlar",
-      productsInUzum: "Uzumdagi tovarlar",
+      productsInUzum: "Brend tovarlari",
       b2bRequest: "B2B ariza",
       openShop: "Do'konni ochish",
       viewBrands: "Brendlarni ko'rish",
@@ -358,10 +358,10 @@ export const ui = {
         "Elfa Group - Ukraina, Polsha va Slovakiyada 6 ta fabrikaga ega xalqaro kosmetika kompaniyasi. Rasmiy saytda bozorda 26 yil, 63 mamlakat, 23 brend va 3000 innovatsion formula ko'rsatilgan.",
     },
     catalogPreview: {
-      label: "Uzumdagi tovarlar",
+      label: "Katalogdagi tovarlar",
       title: "Qidiruv, kategoriya va narx bo'yicha saralashga ega katalog",
       text:
-        "Alohida sahifada Beauty Harmony tovar kartochkalari jamlangan: narx, rasm, brend, mo'ljallanishi va bevosita Uzum Marketga olib boradigan sotib olish tugmasi.",
+        "Alohida sahifada Beauty Harmony tovar kartochkalari jamlangan: narx, rasm, brend, mo'ljallanishi va savatga qo'shish tugmasi.",
     },
     brandsPage: {
       label: "Brendlar",
@@ -370,7 +370,7 @@ export const ui = {
       more: "Brend haqida batafsil",
     },
     catalog: {
-      eyebrow: "Uzum Marketdagi Beauty Harmony katalogi",
+      eyebrow: "Beauty Harmony katalogi",
       title: "Tovarlar katalogi",
       intro:
         "Beauty Harmony do'konidan haqiqiy havola, rasm va narxlarga ega tovarlar: shampunlar, kremlar, yuz parvarishi, depilyatsiya, dush gellari, intim gigiyena va maishiy kimyo.",
@@ -381,7 +381,7 @@ export const ui = {
       searchLabel: "Tovarlarni qidirish",
       category: "Kategoriya",
       sort: "Saralash",
-      defaultSort: "Uzumdagi tartib",
+      defaultSort: "Standart tartib",
       priceAsc: "Narx: arzonidan qimmatiga",
       priceDesc: "Narx: qimmatidan arzoniga",
       byName: "Nom bo'yicha",
@@ -391,7 +391,7 @@ export const ui = {
       emptyText: "So'rovni o'zgartiring yoki boshqa kategoriya tanlang.",
       clearFilters: "Filtrlarni tozalash",
       sourceNote:
-        "Narxlar, rasmlar va havolalar Beauty Harmony'ning Uzum Market sahifalaridan 2026-yil 24-mayda olingan. Asosiy narx oddiy narx, Uzum-karta narxi alohida ko'rsatilgan.",
+        "Narxlar, rasmlar va tavsiflar Beauty Harmony bazasidan yuklanadi. Ma'lumotlarni admin panelda yangilash mumkin.",
     },
     brandPage: {
       essence: "Brend mohiyati",
@@ -422,7 +422,7 @@ export const ui = {
         "Katalogda Dr.Sante, Fresh Juice, The Doctor, Green Pharmacy, Lady Caramel, Cool Men va Pink Elephant bor. Har bir yo'nalish uchun o'ziga mos vizual uslub va tovar tuzilmasi tanlangan.",
       logisticsTitle: "Chakana va B2B uchun",
       logisticsText:
-        "Beauty Harmony xaridorni Uzum Marketga olib boradi, hamkorlar uchun esa ulgurji savdo, yetkazib berish, chakana tarmoqlar va marketpleyslar bo'yicha alohida B2B ariza sahifasi bor.",
+        "Beauty Harmony xaridor uchun tushunarli katalog beradi, hamkorlar uchun esa ulgurji savdo, yetkazib berish, chakana tarmoqlar va marketpleyslar bo'yicha alohida B2B ariza sahifasi bor.",
       stats: [
         ["7", "portfeldagi brendlar"],
         ["300+", "katalogdagi tovarlar"],
@@ -881,7 +881,6 @@ export const elfaFacts = [
 ];
 
 export const sources = [
-  ["Uzum Beauty Harmony", uzumShopUrl],
   ["Elfa Group", "https://elfagroup.com/"],
   ["История Elfa Group", "https://pl.elfagroup.com/elfa-group/"],
   ["Dr.Sante", "https://elfagroup.com/brands/dr-sante/"],
