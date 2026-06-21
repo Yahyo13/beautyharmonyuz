@@ -399,10 +399,6 @@ function Shell({ route, children }) {
           <span>{customerUser ? customerName || t.common.profile : t.common.signIn}</span>
         </button>
 
-        <AppButton href={uzumShopUrl} variant="ghost" icon={ShoppingBag}>
-          {t.uzumMarket}
-        </AppButton>
-
         <button
           className="menu-toggle"
           type="button"
@@ -449,25 +445,39 @@ function CookieNotice() {
 }
 
 function getCustomerAuthErrorMessage(error, language) {
-  const code = error?.code || error?.message || "";
+  const code = String(error?.code || "").trim();
+  const message = String(error?.message || "").trim();
+  const details = code || message;
 
   if (language === "uz") {
-    if (code.includes("invalid-phone-number")) return "Telefon raqami noto'g'ri formatda.";
-    if (code.includes("invalid-verification-code")) return "SMS-kod noto'g'ri.";
-    if (code.includes("code-expired")) return "SMS-kod muddati tugagan. Kodni qaytadan oling.";
-    if (code.includes("too-many-requests")) return "Juda ko'p urinish bo'ldi. Keyinroq urinib ko'ring.";
-    if (code.includes("unauthorized-domain")) return "Bu domen Firebase Auth uchun ruxsat etilmagan.";
-    if (code.includes("operation-not-allowed")) return "Firebase Console ichida Phone sign-in yoqilmagan.";
-    return "Kirish amalga oshmadi. Internet yoki Firebase sozlamalarini tekshiring.";
+    if (details.includes("FIREBASE_NOT_CONFIGURED")) return "Firebase sozlamalari saytga ulanmagan.";
+    if (details.includes("invalid-phone-number")) return "Telefon raqami noto'g'ri formatda.";
+    if (details.includes("invalid-verification-code")) return "SMS-kod noto'g'ri.";
+    if (details.includes("code-expired")) return "SMS-kod muddati tugagan. Kodni qaytadan oling.";
+    if (details.includes("too-many-requests")) return "Juda ko'p urinish bo'ldi. Keyinroq urinib ko'ring.";
+    if (details.includes("quota-exceeded")) return "Firebase SMS limiti tugagan. Keyinroq urinib ko'ring.";
+    if (details.includes("unauthorized-domain") || details.includes("app-not-authorized")) return "Bu domen Firebase Auth Authorized domains ro'yxatiga qo'shilmagan.";
+    if (details.includes("operation-not-allowed")) return "Firebase Console ichida Phone sign-in yoqilmagan.";
+    if (details.includes("invalid-app-credential") || details.includes("missing-app-credential") || details.includes("captcha-check-failed")) {
+      return "reCAPTCHA/Firebase tekshiruvi o'tmadi. Firebase Auth ichida domen va Phone sign-in sozlamalarini tekshiring.";
+    }
+    if (details.includes("network-request-failed")) return "Internet bilan ulanishda muammo bor.";
+    return `Kirish amalga oshmadi. Firebase kodi: ${details || "noma'lum"}`;
   }
 
-  if (code.includes("invalid-phone-number")) return "Номер телефона указан в неверном формате.";
-  if (code.includes("invalid-verification-code")) return "SMS-код неверный.";
-  if (code.includes("code-expired")) return "SMS-код истек. Получите код заново.";
-  if (code.includes("too-many-requests")) return "Слишком много попыток. Попробуйте позже.";
-  if (code.includes("unauthorized-domain")) return "Этот домен не разрешен в Firebase Auth.";
-  if (code.includes("operation-not-allowed")) return "В Firebase Console не включен Phone sign-in.";
-  return "Не удалось войти. Проверьте интернет или настройки Firebase.";
+  if (details.includes("FIREBASE_NOT_CONFIGURED")) return "Firebase-настройки не подключены к сайту.";
+  if (details.includes("invalid-phone-number")) return "Номер телефона указан в неверном формате.";
+  if (details.includes("invalid-verification-code")) return "SMS-код неверный.";
+  if (details.includes("code-expired")) return "SMS-код истек. Получите код заново.";
+  if (details.includes("too-many-requests")) return "Слишком много попыток. Попробуйте позже.";
+  if (details.includes("quota-exceeded")) return "Лимит Firebase SMS исчерпан. Попробуйте позже.";
+  if (details.includes("unauthorized-domain") || details.includes("app-not-authorized")) return "Этот домен не добавлен в Firebase Auth Authorized domains.";
+  if (details.includes("operation-not-allowed")) return "В Firebase Console не включен Phone sign-in.";
+  if (details.includes("invalid-app-credential") || details.includes("missing-app-credential") || details.includes("captcha-check-failed")) {
+    return "Проверка reCAPTCHA/Firebase не прошла. Проверьте домен и Phone sign-in в Firebase Auth.";
+  }
+  if (details.includes("network-request-failed")) return "Проблема с интернет-соединением.";
+  return `Не удалось войти. Код Firebase: ${details || "неизвестно"}`;
 }
 
 function CustomerPanel({ isOpen, onClose }) {
