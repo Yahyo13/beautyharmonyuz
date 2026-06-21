@@ -457,7 +457,7 @@ function getCustomerAuthErrorMessage(error, language) {
     if (details.includes("too-many-requests")) return "Juda ko'p urinish bo'ldi. Keyinroq urinib ko'ring.";
     if (details.includes("quota-exceeded")) return "Firebase SMS limiti tugagan. Keyinroq urinib ko'ring.";
     if (details.includes("unauthorized-domain") || details.includes("app-not-authorized")) return "Bu domen Firebase Auth Authorized domains ro'yxatiga qo'shilmagan.";
-    if (details.includes("operation-not-allowed")) return "Firebase Console ichida Phone sign-in yoqilmagan.";
+    if (details.includes("operation-not-allowed")) return "Firebase ichida Phone sign-in yoki SMS region policy sozlanmagan. Authentication > Settings > SMS region policy ichida Uzbekistan (+998) ni ruxsat qiling.";
     if (details.includes("invalid-app-credential") || details.includes("missing-app-credential") || details.includes("captcha-check-failed")) {
       return "reCAPTCHA/Firebase tekshiruvi o'tmadi. Firebase Auth ichida domen va Phone sign-in sozlamalarini tekshiring.";
     }
@@ -472,7 +472,7 @@ function getCustomerAuthErrorMessage(error, language) {
   if (details.includes("too-many-requests")) return "Слишком много попыток. Попробуйте позже.";
   if (details.includes("quota-exceeded")) return "Лимит Firebase SMS исчерпан. Попробуйте позже.";
   if (details.includes("unauthorized-domain") || details.includes("app-not-authorized")) return "Этот домен не добавлен в Firebase Auth Authorized domains.";
-  if (details.includes("operation-not-allowed")) return "В Firebase Console не включен Phone sign-in.";
+  if (details.includes("operation-not-allowed")) return "В Firebase не настроен Phone sign-in или SMS region policy. Откройте Authentication > Settings > SMS region policy и разрешите Uzbekistan (+998).";
   if (details.includes("invalid-app-credential") || details.includes("missing-app-credential") || details.includes("captcha-check-failed")) {
     return "Проверка reCAPTCHA/Firebase не прошла. Проверьте домен и Phone sign-in в Firebase Auth.";
   }
