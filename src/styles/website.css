@@ -315,7 +315,16 @@
     linear-gradient(145deg, #151d27, #101822);
 }
 
+:root[data-theme="dark"] .profile-reload-modal__card {
+  border-color: rgba(82, 190, 128, 0.2);
+  color: #edf5f8;
+  background:
+    radial-gradient(circle at 100% 0%, rgba(82, 190, 128, 0.18), transparent 34%),
+    linear-gradient(145deg, #151d27, #101822);
+}
+
 :root[data-theme="dark"] .customer-modal__card p,
+:root[data-theme="dark"] .profile-reload-modal__card p,
 :root[data-theme="dark"] .customer-form label,
 :root[data-theme="dark"] .customer-profile-card span {
   color: #aeb9c6;
@@ -473,6 +482,7 @@
 }
 
 .customer-modal,
+.profile-reload-modal,
 .request-success-modal,
 .admin-delete-modal {
   position: fixed;
@@ -481,6 +491,56 @@
   display: grid;
   place-items: center;
   padding: 18px;
+}
+
+.profile-reload-modal__backdrop {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  background: rgba(7, 15, 12, 0.62);
+  backdrop-filter: blur(9px);
+}
+
+.profile-reload-modal__card {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  gap: 14px;
+  width: min(480px, 100%);
+  padding: 28px;
+  border: 1px solid rgba(11, 61, 42, 0.16);
+  border-radius: 8px;
+  color: #17202a;
+  background:
+    radial-gradient(circle at 100% 0%, rgba(15, 107, 67, 0.16), transparent 34%),
+    linear-gradient(145deg, #ffffff, #f8fff9);
+  box-shadow: 0 30px 90px rgba(7, 15, 12, 0.28);
+}
+
+.profile-reload-modal__icon {
+  display: grid;
+  width: 58px;
+  height: 58px;
+  place-items: center;
+  border-radius: 18px;
+  color: #ffffff;
+  background: linear-gradient(135deg, #0b3d2a, #0f6b43);
+  box-shadow: 0 18px 36px rgba(11, 61, 42, 0.22);
+}
+
+.profile-reload-modal__card h2 {
+  margin: 4px 0 0;
+}
+
+.profile-reload-modal__card p {
+  margin: 0;
+  color: #4e5c6b;
+  line-height: 1.58;
+}
+
+.profile-reload-modal__card .app-button {
+  width: fit-content;
+  margin-top: 4px;
 }
 
 .customer-modal__backdrop {

@@ -504,6 +504,37 @@ function CookieNotice() {
   );
 }
 
+function ProfileReloadModal({ isOpen, onReload }) {
+  const { language } = useLocale();
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="profile-reload-modal" role="dialog" aria-modal="true" aria-labelledby="profile-reload-title">
+      <div className="profile-reload-modal__backdrop" />
+      <article className="profile-reload-modal__card">
+        <div className="profile-reload-modal__icon">
+          <RefreshCw size={26} aria-hidden="true" />
+        </div>
+        <h2 id="profile-reload-title">{language === "uz" ? "Profilni yuklash kerak" : "Профиль почти готов"}</h2>
+        <p>
+          {language === "uz"
+            ? "Profil, savat va buyurtmalar to'g'ri yuklanishi uchun brauzerning chap yuqorisidagi yangilash tugmasini bosing yoki Ctrl + R kombinatsiyasidan foydalaning."
+            : "Чтобы профиль, корзина и заказы загрузились корректно, перезагрузите сайт кнопкой обновления слева сверху в браузере или используйте Ctrl + R."}
+        </p>
+        <p>
+          {language === "uz"
+            ? "Yoki pastdagi OK tugmasini bosing, sahifani avtomatik qayta yuklaymiz."
+            : "Или нажмите OK ниже, мы автоматически перезагрузим страницу."}
+        </p>
+        <AppButton type="button" icon={RefreshCw} onClick={onReload}>
+          {language === "uz" ? "OK, qayta yuklash" : "OK, перезагрузить"}
+        </AppButton>
+      </article>
+    </div>
+  );
+}
+
 function getCustomerAuthErrorMessage(error, language) {
   const code = String(error?.code || "").trim();
   const message = String(typeof error === "string" ? error : error?.message || "").trim();
@@ -4312,8 +4343,29 @@ export function BeautyHarmonyWebsite({ customerAuth = null } = {}) {
   const [isCustomerLoading, setIsCustomerLoading] = useState(false);
   const [customerError, setCustomerError] = useState("");
   const [customerListsReadyUid, setCustomerListsReadyUid] = useState("");
+  const [isProfileReloadPromptOpen, setIsProfileReloadPromptOpen] = useState(false);
   const saveCustomerCollectionsTimeoutRef = useRef(null);
+  const previousExternalAuthUidRef = useRef(null);
+  const hasCheckedInitialExternalAuthRef = useRef(false);
   useRevealAnimation(route);
+
+  useEffect(() => {
+    if (!usesExternalCustomerAuth || !customerAuth?.isLoaded) return;
+
+    const currentUid = customerAuth?.user?.uid || "";
+
+    if (!hasCheckedInitialExternalAuthRef.current) {
+      hasCheckedInitialExternalAuthRef.current = true;
+      previousExternalAuthUidRef.current = currentUid;
+      return;
+    }
+
+    if (currentUid && previousExternalAuthUidRef.current !== currentUid) {
+      setIsProfileReloadPromptOpen(true);
+    }
+
+    previousExternalAuthUidRef.current = currentUid;
+  }, [customerAuth?.authVersion, customerAuth?.isLoaded, customerAuth?.user?.uid, usesExternalCustomerAuth]);
 
   useEffect(() => {
     if (!usesExternalCustomerAuth) return undefined;
@@ -4570,6 +4622,10 @@ export function BeautyHarmonyWebsite({ customerAuth = null } = {}) {
     setCartItems([]);
   }, []);
 
+  const reloadSiteForProfile = useCallback(() => {
+    window.location.reload();
+  }, []);
+
   const isCustomerAuthConfigured = usesExternalCustomerAuth ? Boolean(customerAuth?.isConfigured) : hasCustomerAuthConfig();
 
   const openCustomerSignIn = useCallback(() => {
@@ -4801,6 +4857,7 @@ export function BeautyHarmonyWebsite({ customerAuth = null } = {}) {
           <CartContext.Provider value={cartValue}>
             <FavoritesContext.Provider value={favoritesValue}>
               <Shell route={route}>{content}</Shell>
+              <ProfileReloadModal isOpen={isProfileReloadPromptOpen} onReload={reloadSiteForProfile} />
             </FavoritesContext.Provider>
           </CartContext.Provider>
         </CustomerContext.Provider>
