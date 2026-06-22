@@ -139,6 +139,7 @@ const turnstileSiteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY || "";
 const defaultPartnerBrands = "Dr.Sante, Fresh Juice, Green Pharmacy";
 const favoritesStorageKey = "beauty-harmony-favorites";
 const cartStorageKey = "beauty-harmony-cart";
+const clerkFlowStorageKey = "beauty-harmony-clerk-flow-opened";
 
 function readStoredArray(key) {
   try {
@@ -146,6 +147,32 @@ function readStoredArray(key) {
     return Array.isArray(parsed) ? parsed : [];
   } catch {
     return [];
+  }
+}
+
+function markClerkFlowOpened() {
+  try {
+    sessionStorage.setItem(clerkFlowStorageKey, "yes");
+    localStorage.setItem(clerkFlowStorageKey, "yes");
+  } catch {
+    // Storage can be blocked in private mode; auth still works without the prompt flag.
+  }
+}
+
+function hasClerkFlowOpenedFlag() {
+  try {
+    return sessionStorage.getItem(clerkFlowStorageKey) === "yes" || localStorage.getItem(clerkFlowStorageKey) === "yes";
+  } catch {
+    return false;
+  }
+}
+
+function clearClerkFlowOpenedFlag() {
+  try {
+    sessionStorage.removeItem(clerkFlowStorageKey);
+    localStorage.removeItem(clerkFlowStorageKey);
+  } catch {
+    // Ignore storage failures.
   }
 }
 
@@ -4353,18 +4380,45 @@ export function BeautyHarmonyWebsite({ customerAuth = null } = {}) {
     if (!usesExternalCustomerAuth || !customerAuth?.isLoaded) return;
 
     const currentUid = customerAuth?.user?.uid || "";
+    const hadOpenClerkFlow = hasClerkFlowOpenedFlag();
 
     if (!hasCheckedInitialExternalAuthRef.current) {
       hasCheckedInitialExternalAuthRef.current = true;
       previousExternalAuthUidRef.current = currentUid;
+      if (currentUid && hadOpenClerkFlow) {
+        clearClerkFlowOpenedFlag();
+        setIsProfileReloadPromptOpen(true);
+      }
       return;
     }
 
-    if (currentUid && previousExternalAuthUidRef.current !== currentUid) {
+    if (currentUid && (hadOpenClerkFlow || previousExternalAuthUidRef.current !== currentUid)) {
+      clearClerkFlowOpenedFlag();
       setIsProfileReloadPromptOpen(true);
     }
 
     previousExternalAuthUidRef.current = currentUid;
+  }, [customerAuth?.authVersion, customerAuth?.isLoaded, customerAuth?.user?.uid, usesExternalCustomerAuth]);
+
+  useEffect(() => {
+    if (!usesExternalCustomerAuth || !customerAuth?.isLoaded || !customerAuth?.user?.uid) return undefined;
+
+    const showReloadPromptIfNeeded = () => {
+      if (!hasClerkFlowOpenedFlag()) return;
+      clearClerkFlowOpenedFlag();
+      setIsProfileReloadPromptOpen(true);
+    };
+
+    const intervalId = window.setInterval(showReloadPromptIfNeeded, 500);
+    window.addEventListener("focus", showReloadPromptIfNeeded);
+    document.addEventListener("visibilitychange", showReloadPromptIfNeeded);
+    showReloadPromptIfNeeded();
+
+    return () => {
+      window.clearInterval(intervalId);
+      window.removeEventListener("focus", showReloadPromptIfNeeded);
+      document.removeEventListener("visibilitychange", showReloadPromptIfNeeded);
+    };
   }, [customerAuth?.authVersion, customerAuth?.isLoaded, customerAuth?.user?.uid, usesExternalCustomerAuth]);
 
   useEffect(() => {
@@ -4630,6 +4684,7 @@ export function BeautyHarmonyWebsite({ customerAuth = null } = {}) {
 
   const openCustomerSignIn = useCallback(() => {
     if (usesExternalCustomerAuth) {
+      markClerkFlowOpened();
       customerAuth?.openSignIn?.();
       return;
     }
@@ -4639,6 +4694,7 @@ export function BeautyHarmonyWebsite({ customerAuth = null } = {}) {
 
   const openCustomerSignUp = useCallback(() => {
     if (usesExternalCustomerAuth) {
+      markClerkFlowOpened();
       customerAuth?.openSignUp?.();
       return;
     }
