@@ -96,6 +96,7 @@ import {
 } from "./data/customerSupportApi";
 import {
   completeCustomerEmailLinkSignIn,
+  createCustomerWithPassword,
   getCustomerProfile,
   hasCustomerAuthConfig,
   isCustomerEmailSignInLink,
@@ -499,7 +500,9 @@ function getCustomerAuthErrorMessage(error, language) {
     if (details.includes("EMAIL_LINK_EMAIL_MISSING")) return "Havola boshqa brauzerda ochilgan. Qayta email kiriting va yangi havola oling.";
     if (details.includes("EMAIL_LINK_MISSING")) return "Kirish havolasi topilmadi yoki eskirgan.";
     if (details.includes("WEAK_PASSWORD") || details.includes("weak-password")) return "Parol kamida 6 ta belgidan iborat bo'lishi kerak.";
+    if (details.includes("quota-exceeded")) return "Bugungi email havolalar limiti tugadi. Parol bilan ro'yxatdan o'ting yoki keyinroq urinib ko'ring.";
     if (details.includes("PHONE_EMAIL_NOT_FOUND")) return "Bu telefon raqamiga bog'langan profil topilmadi.";
+    if (details.includes("email-already-in-use")) return "Bu email bilan profil allaqachon yaratilgan. Kirish bo'limidan foydalaning.";
     if (details.includes("PHONE_LOGIN_REQUIRES_FIRESTORE")) return "Telefon orqali kirish uchun Firebase Firestore sozlamasi kerak.";
     if (details.includes("invalid-credential") || details.includes("wrong-password") || details.includes("user-not-found")) return "Email/telefon yoki parol noto'g'ri.";
     if (details.includes("expired-action-code") || details.includes("invalid-action-code")) return "Email havola eskirgan. Yangi havola oling.";
@@ -515,7 +518,9 @@ function getCustomerAuthErrorMessage(error, language) {
   if (details.includes("EMAIL_LINK_EMAIL_MISSING")) return "Ссылка открыта в другом браузере. Введите email заново и получите новую ссылку.";
   if (details.includes("EMAIL_LINK_MISSING")) return "Ссылка для входа не найдена или устарела.";
   if (details.includes("WEAK_PASSWORD") || details.includes("weak-password")) return "Пароль должен быть минимум 6 символов.";
+  if (details.includes("quota-exceeded")) return "Дневной лимит email-ссылок закончился. Зарегистрируйтесь по паролю или попробуйте позже.";
   if (details.includes("PHONE_EMAIL_NOT_FOUND")) return "Профиль с таким номером телефона не найден.";
+  if (details.includes("email-already-in-use")) return "Профиль с этим email уже создан. Используйте раздел входа.";
   if (details.includes("PHONE_LOGIN_REQUIRES_FIRESTORE")) return "Для входа по телефону нужен настроенный Firebase Firestore.";
   if (details.includes("invalid-credential") || details.includes("wrong-password") || details.includes("user-not-found")) return "Email/телефон или пароль указан неверно.";
   if (details.includes("expired-action-code") || details.includes("invalid-action-code")) return "Email-ссылка устарела. Получите новую ссылку.";
@@ -535,6 +540,7 @@ function CustomerPanel({ isOpen, onClose }) {
     isCustomerReady,
     isCustomerLoading,
     completeCustomerSignInLink,
+    registerCustomerPassword,
     signInCustomerPassword,
     setCustomerAccountPassword,
     sendCustomerSignInLink,
@@ -542,6 +548,7 @@ function CustomerPanel({ isOpen, onClose }) {
     logoutCustomer,
   } = useCustomer();
   const [authMode, setAuthMode] = useState("login");
+  const [useDirectRegistration, setUseDirectRegistration] = useState(false);
   const [registerEmail, setRegisterEmail] = useState("");
   const [loginIdentifier, setLoginIdentifier] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
@@ -586,6 +593,7 @@ function CustomerPanel({ isOpen, onClose }) {
       setPhoneNumber("+998 ");
       setLoginPassword("");
       setAccountPassword("");
+      setUseDirectRegistration(false);
 
       isCustomerEmailSignInLink().then((hasLink) => {
         if (hasLink) setAuthMode("register");
@@ -633,6 +641,55 @@ function CustomerPanel({ isOpen, onClose }) {
 
       await sendCustomerSignInLink(registerEmail, language);
       setStatusText(t.auth.linkSent);
+    } catch (error) {
+      setErrorText(getCustomerAuthErrorMessage(error, language));
+      const details = `${error?.code || ""} ${error?.message || ""}`;
+      if (details.includes("quota-exceeded")) setUseDirectRegistration(true);
+    }
+  }
+
+  async function handleDirectRegistration(event) {
+    event.preventDefault();
+    setErrorText("");
+    setStatusText("");
+
+    if (!hasCustomerAuthConfig()) {
+      setErrorText(t.auth.authUnavailable);
+      return;
+    }
+
+    if (!isCustomerEmailValid(registerEmail)) {
+      setErrorText(t.auth.invalidEmail);
+      return;
+    }
+
+    if (!firstName.trim() || !lastName.trim()) {
+      setErrorText(t.auth.requiredName);
+      return;
+    }
+
+    if (!isFullUzbekPhone(phoneNumber)) {
+      setErrorText(t.auth.invalidPhone);
+      return;
+    }
+
+    if (!isCustomerPasswordValid(accountPassword)) {
+      setErrorText(language === "uz" ? "Parol kamida 6 ta belgidan iborat bo'lishi kerak." : "Пароль должен быть минимум 6 символов.");
+      return;
+    }
+
+    try {
+      const profile = await registerCustomerPassword({
+        email: registerEmail,
+        password: accountPassword,
+        profile: { firstName, lastName, phoneNumber: normalizeCustomerPhoneNumber(phoneNumber) },
+      });
+      setFirstName(profile?.firstName || firstName);
+      setLastName(profile?.lastName || lastName);
+      setPhoneNumber(profile?.phoneNumber || normalizeCustomerPhoneNumber(phoneNumber));
+      setAccountPassword("");
+      setStatusText(language === "uz" ? "Ro'yxatdan o'tish yakunlandi." : "Регистрация завершена.");
+      setStep("profile");
     } catch (error) {
       setErrorText(getCustomerAuthErrorMessage(error, language));
     }
@@ -745,7 +802,7 @@ function CustomerPanel({ isOpen, onClose }) {
         )}
 
         {!customerUser && isRegisterMode && (
-          <form className="customer-form" onSubmit={handleRegisterLink}>
+          <form className="customer-form" onSubmit={useDirectRegistration ? handleDirectRegistration : handleRegisterLink}>
             <label>
               {t.auth.email}
               <input
@@ -757,9 +814,57 @@ function CustomerPanel({ isOpen, onClose }) {
                 required
               />
             </label>
+            {useDirectRegistration && (
+              <>
+                <div className="customer-form__grid">
+                  <label>
+                    {t.auth.firstName}
+                    <input value={firstName} onChange={(event) => setFirstName(event.target.value)} autoComplete="given-name" required />
+                  </label>
+                  <label>
+                    {t.auth.lastName}
+                    <input value={lastName} onChange={(event) => setLastName(event.target.value)} autoComplete="family-name" required />
+                  </label>
+                  <label className="customer-form__wide">
+                    {t.auth.phone}
+                    <input
+                      value={phoneNumber}
+                      onChange={(event) => setPhoneNumber(formatUzbekPhoneNumber(event.target.value))}
+                      placeholder={t.auth.phonePlaceholder}
+                      inputMode="tel"
+                      autoComplete="tel"
+                      required
+                    />
+                  </label>
+                  <label className="customer-form__wide">
+                    {language === "uz" ? "Parol" : "Пароль"}
+                    <input
+                      value={accountPassword}
+                      onChange={(event) => setAccountPassword(event.target.value)}
+                      placeholder={language === "uz" ? "Kamida 6 belgi" : "Минимум 6 символов"}
+                      type="password"
+                      autoComplete="new-password"
+                      required
+                    />
+                  </label>
+                </div>
+                <p className="auth-helper-text">
+                  {language === "uz" ? "Email havolasi limiti tugasa, shu usul bilan akkaunt yaratish mumkin." : "Если лимит email-ссылок закончился, можно создать аккаунт этим способом."}
+                </p>
+              </>
+            )}
             <AppButton type="submit" icon={Send} disabled={isCustomerLoading}>
-              {isCustomerLoading ? t.auth.sending : t.auth.sendLink}
+              {isCustomerLoading
+                ? t.auth.sending
+                : useDirectRegistration
+                  ? (language === "uz" ? "Akkaunt yaratish" : "Создать аккаунт")
+                  : t.auth.sendLink}
             </AppButton>
+            <button className="text-button" type="button" onClick={() => setUseDirectRegistration((value) => !value)} disabled={isCustomerLoading}>
+              {useDirectRegistration
+                ? t.auth.sendLink
+                : (language === "uz" ? "Parol bilan ro'yxatdan o'tish" : "Регистрация по паролю")}
+            </button>
           </form>
         )}
 
@@ -4211,6 +4316,24 @@ export function BeautyHarmonyWebsite() {
     }
   }, []);
 
+  const registerCustomerPassword = useCallback(async ({ email, password, profile }) => {
+    setIsCustomerLoading(true);
+    setCustomerError("");
+    try {
+      const result = await createCustomerWithPassword(email, password);
+      const savedProfile = await saveCustomerProfile(result.user, profile || {});
+      setCustomerUser(result.user);
+      setCustomerProfile(savedProfile);
+      setCustomerListsReadyUid("");
+      return savedProfile;
+    } catch (error) {
+      setCustomerError(error?.message || "Password registration failed");
+      throw error;
+    } finally {
+      setIsCustomerLoading(false);
+    }
+  }, []);
+
   const completeCustomerSignInLink = useCallback(async (email) => {
     setIsCustomerLoading(true);
     setCustomerError("");
@@ -4336,6 +4459,7 @@ export function BeautyHarmonyWebsite() {
       isCustomerLoading,
       customerError,
       completeCustomerSignInLink,
+      registerCustomerPassword,
       signInCustomerPassword,
       setCustomerAccountPassword,
       sendCustomerSignInLink,
@@ -4350,6 +4474,7 @@ export function BeautyHarmonyWebsite() {
       isCustomerLoading,
       isCustomerReady,
       logoutCustomer,
+      registerCustomerPassword,
       signInCustomerPassword,
       setCustomerAccountPassword,
       sendCustomerSignInLink,

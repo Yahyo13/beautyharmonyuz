@@ -347,6 +347,12 @@
   background: linear-gradient(135deg, #0f6b43, #bf9b30);
 }
 
+:root[data-theme="dark"] .auth-helper-text {
+  border-color: rgba(117, 240, 170, 0.18);
+  color: #cbd7ce;
+  background: rgba(117, 240, 170, 0.08);
+}
+
 .menu-toggle {
   display: none;
   place-items: center;
@@ -600,6 +606,17 @@
 .customer-form input:focus {
   border-color: rgba(116, 56, 255, 0.46);
   box-shadow: 0 0 0 3px rgba(116, 56, 255, 0.12);
+}
+
+.auth-helper-text {
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid rgba(15, 107, 67, 0.14);
+  border-radius: 8px;
+  color: #3f5146;
+  background: rgba(15, 107, 67, 0.08);
+  font-size: 0.88rem;
+  line-height: 1.45;
 }
 
 .customer-profile-card {

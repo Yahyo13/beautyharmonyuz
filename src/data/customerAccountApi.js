@@ -190,6 +190,17 @@ export async function signInCustomerWithPassword(identifier, password) {
   return client.authApi.signInWithEmailAndPassword(client.auth, email, password);
 }
 
+export async function createCustomerWithPassword(email, password) {
+  const normalizedEmail = normalizeCustomerEmail(email);
+  if (!isCustomerEmailValid(normalizedEmail)) throw new Error("INVALID_EMAIL");
+  if (!isCustomerPasswordValid(password)) throw new Error("WEAK_PASSWORD");
+
+  const client = await getFirebaseAuthClient();
+  if (!client) throw new Error("FIREBASE_NOT_CONFIGURED");
+
+  return client.authApi.createUserWithEmailAndPassword(client.auth, normalizedEmail, password);
+}
+
 export async function setCustomerPassword(password) {
   if (!isCustomerPasswordValid(password)) throw new Error("WEAK_PASSWORD");
 
