@@ -211,8 +211,10 @@ const CustomerContext = React.createContext({
   customerProfile: null,
   isCustomerReady: false,
   isCustomerLoading: false,
+  isCustomerAuthConfigured: false,
   customerError: "",
-  sendCustomerSignInLink: async () => null,
+  openCustomerSignIn: () => {},
+  openCustomerSignUp: () => {},
   updateCustomerProfile: async () => null,
   logoutCustomer: async () => {},
 });
@@ -494,6 +496,12 @@ function getCustomerAuthErrorMessage(error, language) {
   const message = String(typeof error === "string" ? error : error?.message || "").trim();
   const details = code || message;
 
+  if (details.includes("CLERK_NOT_CONFIGURED")) {
+    return language === "uz"
+      ? "Clerk kaliti saytga ulanmagan. Vercel yoki .env ichiga VITE_CLERK_PUBLISHABLE_KEY qo'shing."
+      : "Clerk не подключен. Добавьте VITE_CLERK_PUBLISHABLE_KEY в Vercel или .env.";
+  }
+
   if (language === "uz") {
     if (details.includes("FIREBASE_NOT_CONFIGURED")) return "Firebase sozlamalari saytga ulanmagan.";
     if (details.includes("INVALID_EMAIL") || details.includes("invalid-email")) return "Email manzil noto'g'ri yozilgan.";
@@ -531,7 +539,7 @@ function getCustomerAuthErrorMessage(error, language) {
   return `Не удалось войти. Код Firebase: ${details || "неизвестно"}`;
 }
 
-function CustomerPanel({ isOpen, onClose }) {
+function FirebaseCustomerPanelDeprecated({ isOpen, onClose }) {
   const { language, t } = useLocale();
   const {
     customerUser,
@@ -958,6 +966,191 @@ function CustomerPanel({ isOpen, onClose }) {
 
 // === Визуальная карточка бренда ===
 // Небольшой декоративный mockup товара, который показывается на главной и страницах брендов.
+function CustomerPanel({ isOpen, onClose }) {
+  const { language, t } = useLocale();
+  const {
+    customerUser,
+    customerProfile,
+    customerError,
+    isCustomerReady,
+    isCustomerLoading,
+    isCustomerAuthConfigured,
+    openCustomerSignIn,
+    openCustomerSignUp,
+    updateCustomerProfile,
+    logoutCustomer,
+  } = useCustomer();
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [phoneNumber, setPhoneNumber] = useState("+998 ");
+  const [statusText, setStatusText] = useState("");
+  const [errorText, setErrorText] = useState("");
+  const isProfileComplete = isCustomerProfileComplete(customerProfile);
+  const isNewProfileStep = Boolean(customerUser && !isProfileComplete);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    setStatusText("");
+    setErrorText("");
+    setFirstName(customerProfile?.firstName || customerUser?.firstName || "");
+    setLastName(customerProfile?.lastName || customerUser?.lastName || "");
+    setPhoneNumber(customerProfile?.phoneNumber || customerUser?.phoneNumber || "+998 ");
+  }, [customerProfile, customerUser, isOpen]);
+
+  if (!isOpen) return null;
+
+  const handleClose = () => {
+    if (!isCustomerLoading) onClose();
+  };
+
+  const isFullUzbekPhone = (value) => {
+    const digits = String(value || "").replace(/\D/g, "");
+    return digits.length === 12 && digits.startsWith("998");
+  };
+
+  const openClerkFlow = (flow) => {
+    setErrorText("");
+
+    if (!isCustomerAuthConfigured) {
+      setErrorText(getCustomerAuthErrorMessage("CLERK_NOT_CONFIGURED", language));
+      return;
+    }
+
+    onClose();
+    window.setTimeout(() => {
+      if (flow === "signup") openCustomerSignUp();
+      else openCustomerSignIn();
+    }, 0);
+  };
+
+  async function handleSaveProfile(event) {
+    event.preventDefault();
+    setErrorText("");
+    setStatusText("");
+
+    if (!firstName.trim() || !lastName.trim()) {
+      setErrorText(t.auth.requiredName);
+      return;
+    }
+
+    if (!isFullUzbekPhone(phoneNumber)) {
+      setErrorText(t.auth.invalidPhone);
+      return;
+    }
+
+    try {
+      await updateCustomerProfile({ firstName, lastName, phoneNumber: normalizeCustomerPhoneNumber(phoneNumber) });
+      setStatusText(t.auth.oldUserText);
+    } catch (error) {
+      setErrorText(getCustomerAuthErrorMessage(error, language));
+    }
+  }
+
+  async function handleLogout() {
+    setErrorText("");
+    setStatusText("");
+
+    try {
+      await logoutCustomer();
+      onClose();
+    } catch (error) {
+      setErrorText(getCustomerAuthErrorMessage(error, language));
+    }
+  }
+
+  const panelTitle = customerUser
+    ? t.auth.profileTitle
+    : language === "uz"
+      ? "Profilga kirish"
+      : "Вход в профиль";
+  const panelText = customerUser
+    ? (isNewProfileStep ? t.auth.newUserText : t.auth.oldUserText)
+    : language === "uz"
+      ? "Ro'yxatdan o'tish va kirish endi Clerk orqali ishlaydi: email kodi yoki parol bilan tez va barqaror."
+      : "Регистрация и вход теперь работают через Clerk: по email-коду или паролю, без лимита Firebase email-link.";
+
+  return (
+    <div className="customer-modal" role="dialog" aria-modal="true" aria-labelledby="customer-modal-title">
+      <button className="customer-modal__backdrop" type="button" aria-label={t.auth.close} onClick={handleClose} />
+      <article className="customer-modal__card">
+        <button className="customer-modal__close" type="button" aria-label={t.auth.close} onClick={handleClose}>
+          <X size={18} aria-hidden="true" />
+        </button>
+
+        <div className="customer-modal__icon">
+          {customerUser ? <UserCheck size={27} aria-hidden="true" /> : <Lock size={27} aria-hidden="true" />}
+        </div>
+        <h2 id="customer-modal-title">{panelTitle}</h2>
+        <p>{panelText}</p>
+
+        {!isCustomerReady && (
+          <p className="form-status">{language === "uz" ? "Profil tekshirilmoqda..." : "Проверяем профиль..."}</p>
+        )}
+
+        {!customerUser && (
+          <div className="customer-form">
+            <div className="auth-mode-tabs" role="group" aria-label={language === "uz" ? "Kirish turi" : "Тип входа"}>
+              <button type="button" onClick={() => openClerkFlow("signup")} disabled={isCustomerLoading}>
+                {language === "uz" ? "Ro'yxatdan o'tish" : "Регистрация"}
+              </button>
+              <button type="button" onClick={() => openClerkFlow("signin")} disabled={isCustomerLoading}>
+                {language === "uz" ? "Kirish" : "Вход"}
+              </button>
+            </div>
+            <p className="auth-helper-text">
+              {language === "uz"
+                ? "Profilga kirgandan keyin savat, saralangan mahsulotlar va buyurtmalar shu akkauntda saqlanadi."
+                : "После входа корзина, избранное и заказы будут сохраняться в вашем аккаунте."}
+            </p>
+          </div>
+        )}
+
+        {customerUser && (
+          <form className="customer-form" onSubmit={handleSaveProfile}>
+            <div className="customer-profile-card">
+              <span>{t.auth.signedInAs}</span>
+              <strong>{customerUser.email || customerProfile?.email || "Clerk user"}</strong>
+            </div>
+            <div className="customer-form__grid">
+              <label>
+                {t.auth.firstName}
+                <input value={firstName} onChange={(event) => setFirstName(event.target.value)} autoComplete="given-name" required />
+              </label>
+              <label>
+                {t.auth.lastName}
+                <input value={lastName} onChange={(event) => setLastName(event.target.value)} autoComplete="family-name" required />
+              </label>
+              <label className="customer-form__wide">
+                {t.auth.phone}
+                <input
+                  value={phoneNumber}
+                  onChange={(event) => setPhoneNumber(formatUzbekPhoneNumber(event.target.value))}
+                  placeholder={t.auth.phonePlaceholder}
+                  inputMode="tel"
+                  autoComplete="tel"
+                  required
+                />
+              </label>
+            </div>
+            <AppButton type="submit" icon={CheckCircle2} disabled={isCustomerLoading}>
+              {isCustomerLoading ? t.auth.saving : isNewProfileStep ? (language === "uz" ? "Profilni yakunlash" : "Завершить профиль") : t.auth.saveProfile}
+            </AppButton>
+            <button className="text-button danger" type="button" onClick={handleLogout} disabled={isCustomerLoading}>
+              <LogOut size={16} aria-hidden="true" />
+              {t.common.signOut}
+            </button>
+          </form>
+        )}
+
+        {statusText && <p className="form-status">{statusText}</p>}
+        {customerError && <p className="form-status is-error">{getCustomerAuthErrorMessage(customerError, language)}</p>}
+        {errorText && <p className="form-status is-error">{errorText}</p>}
+      </article>
+    </div>
+  );
+}
+
 function ProductMockup({ brand, compact = false }) {
   const { language } = useLocale();
   const copy = getBrandCopy(brand, language);
@@ -4093,15 +4286,16 @@ function NotFoundPage() {
 
 // === Главный роутер сайта ===
 // Смотрит на адрес после # и решает, какую страницу показать.
-export function BeautyHarmonyWebsite() {
+export function BeautyHarmonyWebsite({ customerAuth = null } = {}) {
   const route = useHashRoute();
+  const usesExternalCustomerAuth = customerAuth?.provider === "clerk";
   const [language, setLanguage] = useState(() => localStorage.getItem("beauty-harmony-language") || "ru");
   const [colorMode, setColorMode] = useState(() => localStorage.getItem("beauty-harmony-theme") || "light");
   const [favoriteIds, setFavoriteIds] = useState(() => cleanFavoriteIds(readStoredArray(favoritesStorageKey)));
   const [cartItems, setCartItems] = useState(() => cleanCartItems(readStoredArray(cartStorageKey)));
   const [customerUser, setCustomerUser] = useState(null);
   const [customerProfile, setCustomerProfile] = useState(null);
-  const [isCustomerReady, setIsCustomerReady] = useState(!hasCustomerAuthConfig());
+  const [isCustomerReady, setIsCustomerReady] = useState(() => (usesExternalCustomerAuth ? Boolean(customerAuth?.isLoaded) : !hasCustomerAuthConfig()));
   const [isCustomerLoading, setIsCustomerLoading] = useState(false);
   const [customerError, setCustomerError] = useState("");
   const [customerListsReadyUid, setCustomerListsReadyUid] = useState("");
@@ -4109,6 +4303,79 @@ export function BeautyHarmonyWebsite() {
   useRevealAnimation(route);
 
   useEffect(() => {
+    if (!usesExternalCustomerAuth) return undefined;
+
+    let isMounted = true;
+
+    if (!customerAuth?.isConfigured) {
+      setCustomerUser(null);
+      setCustomerProfile(null);
+      setCustomerListsReadyUid("");
+      setCustomerError("CLERK_NOT_CONFIGURED");
+      setIsCustomerReady(true);
+      setIsCustomerLoading(false);
+      return () => {
+        isMounted = false;
+      };
+    }
+
+    if (!customerAuth?.isLoaded) {
+      setIsCustomerReady(false);
+      setIsCustomerLoading(true);
+      return () => {
+        isMounted = false;
+      };
+    }
+
+    if (!customerAuth.user) {
+      setCustomerUser(null);
+      setCustomerProfile(null);
+      setCustomerListsReadyUid("");
+      setCustomerError("");
+      setIsCustomerReady(true);
+      setIsCustomerLoading(false);
+      return () => {
+        isMounted = false;
+      };
+    }
+
+    setIsCustomerLoading(true);
+    setCustomerError("");
+
+    getCustomerProfile(customerAuth.user)
+      .then((profile) => {
+        if (!isMounted) return;
+        setCustomerUser(customerAuth.user);
+        setCustomerProfile(profile);
+        setIsCustomerReady(true);
+      })
+      .catch((error) => {
+        if (!isMounted) return;
+        console.warn("[Customer] Clerk profile load failed:", error);
+        setCustomerUser(customerAuth.user);
+        setCustomerProfile(null);
+        setCustomerError(error?.message || "Profile load failed");
+        setIsCustomerReady(true);
+      })
+      .finally(() => {
+        if (isMounted) setIsCustomerLoading(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [
+    customerAuth?.isConfigured,
+    customerAuth?.isLoaded,
+    customerAuth?.user?.uid,
+    customerAuth?.user?.email,
+    customerAuth?.user?.phoneNumber,
+    usesExternalCustomerAuth,
+  ]);
+
+  useEffect(() => {
+    if (usesExternalCustomerAuth) return undefined;
+
     let isMounted = true;
     let unsubscribe = () => {};
     let authChangeId = 0;
@@ -4161,6 +4428,8 @@ export function BeautyHarmonyWebsite() {
   }, []);
 
   useEffect(() => {
+    if (usesExternalCustomerAuth) return undefined;
+
     let isMounted = true;
 
     async function completeEmailLink() {
@@ -4285,6 +4554,26 @@ export function BeautyHarmonyWebsite() {
     setCartItems([]);
   }, []);
 
+  const isCustomerAuthConfigured = usesExternalCustomerAuth ? Boolean(customerAuth?.isConfigured) : hasCustomerAuthConfig();
+
+  const openCustomerSignIn = useCallback(() => {
+    if (usesExternalCustomerAuth) {
+      customerAuth?.openSignIn?.();
+      return;
+    }
+
+    requestCustomerSignIn();
+  }, [customerAuth, usesExternalCustomerAuth]);
+
+  const openCustomerSignUp = useCallback(() => {
+    if (usesExternalCustomerAuth) {
+      customerAuth?.openSignUp?.();
+      return;
+    }
+
+    requestCustomerSignIn();
+  }, [customerAuth, usesExternalCustomerAuth]);
+
   const sendCustomerSignInLink = useCallback(async (email, nextLanguage) => {
     setIsCustomerLoading(true);
     setCustomerError("");
@@ -4396,7 +4685,8 @@ export function BeautyHarmonyWebsite() {
     setIsCustomerLoading(true);
     setCustomerError("");
     try {
-      await signOutCustomer();
+      if (usesExternalCustomerAuth) await customerAuth?.signOut?.();
+      else await signOutCustomer();
       setCustomerUser(null);
       setCustomerProfile(null);
       setCustomerListsReadyUid("");
@@ -4406,7 +4696,7 @@ export function BeautyHarmonyWebsite() {
     } finally {
       setIsCustomerLoading(false);
     }
-  }, []);
+  }, [customerAuth, usesExternalCustomerAuth]);
 
   const content = useMemo(() => {
     if (route === "/" || route === "") return <HomePage />;
@@ -4457,8 +4747,11 @@ export function BeautyHarmonyWebsite() {
       customerProfile,
       isCustomerReady,
       isCustomerLoading,
+      isCustomerAuthConfigured,
       customerError,
       completeCustomerSignInLink,
+      openCustomerSignIn,
+      openCustomerSignUp,
       registerCustomerPassword,
       signInCustomerPassword,
       setCustomerAccountPassword,
@@ -4471,9 +4764,12 @@ export function BeautyHarmonyWebsite() {
       customerProfile,
       customerUser,
       completeCustomerSignInLink,
+      isCustomerAuthConfigured,
       isCustomerLoading,
       isCustomerReady,
       logoutCustomer,
+      openCustomerSignIn,
+      openCustomerSignUp,
       registerCustomerPassword,
       signInCustomerPassword,
       setCustomerAccountPassword,

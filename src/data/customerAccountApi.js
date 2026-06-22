@@ -77,9 +77,9 @@ function cleanCartItems(value) {
 }
 
 function normalizeCustomerProfile(user, data = {}) {
-  const firstName = String(data.firstName || "").trim();
-  const lastName = String(data.lastName || "").trim();
-  const displayName = String(data.displayName || `${firstName} ${lastName}`.trim()).trim();
+  const firstName = String(data.firstName || user.firstName || "").trim();
+  const lastName = String(data.lastName || user.lastName || "").trim();
+  const displayName = String(data.displayName || user.displayName || `${firstName} ${lastName}`.trim()).trim();
 
   return {
     uid: user.uid,
@@ -236,9 +236,9 @@ export async function getCustomerProfile(user) {
         email: user.email || "",
         phoneNumber: user.phoneNumber || "",
         phoneDigits: getPhoneDigits(user.phoneNumber || ""),
-        firstName: "",
-        lastName: "",
-        displayName: "",
+        firstName: user.firstName || "",
+        lastName: user.lastName || "",
+        displayName: user.displayName || `${user.firstName || ""} ${user.lastName || ""}`.trim(),
         favoriteIds: [],
         cartItems: [],
         createdAt: firestoreApi.serverTimestamp(),
