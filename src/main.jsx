@@ -1,6 +1,6 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
-import { ClerkProvider, useClerk, useUser } from "@clerk/react";
+import { ClerkProvider, useAuth, useClerk, useUser } from "@clerk/react";
 import { BeautyHarmonyWebsite } from "./BeautyHarmonyWebsite.jsx";
 import "./styles/base.css";
 import "./styles/website.css";
@@ -8,12 +8,13 @@ import "./styles/website.css";
 const clerkPublishableKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY || "";
 const appHomeUrl = `${window.location.origin}${window.location.pathname}`;
 
-function toCustomerUser(user) {
-  if (!user) return null;
+function toCustomerUser(user, userId = "") {
+  const uid = user?.id || userId || "";
+  if (!uid) return null;
 
   return {
-    uid: user.id,
-    id: user.id,
+    uid,
+    id: uid,
     email: user.primaryEmailAddress?.emailAddress || user.emailAddresses?.[0]?.emailAddress || "",
     phoneNumber: user.primaryPhoneNumber?.phoneNumber || user.phoneNumbers?.[0]?.phoneNumber || "",
     firstName: user.firstName || "",
@@ -24,18 +25,22 @@ function toCustomerUser(user) {
 
 function ClerkAuthBridge() {
   const clerk = useClerk();
-  const { isLoaded, isSignedIn, user } = useUser();
+  const { isLoaded, isSignedIn, sessionId, userId } = useAuth();
+  const { isLoaded: isUserLoaded, user } = useUser();
+  const customerUser = isLoaded && isSignedIn ? toCustomerUser(user, userId) : null;
+  const authVersion = `${isLoaded ? "loaded" : "loading"}:${isSignedIn ? "in" : "out"}:${userId || ""}:${sessionId || ""}:${isUserLoaded ? "user" : "nouser"}`;
   const customerAuth = React.useMemo(
     () => ({
       provider: "clerk",
       isConfigured: true,
       isLoaded,
-      user: isLoaded && isSignedIn ? toCustomerUser(user) : null,
+      authVersion,
+      user: customerUser,
       openSignIn: () => clerk.openSignIn(),
       openSignUp: () => clerk.openSignUp(),
       signOut: () => clerk.signOut({ redirectUrl: appHomeUrl }),
     }),
-    [clerk, isLoaded, isSignedIn, user]
+    [authVersion, clerk, customerUser, isLoaded]
   );
 
   return <BeautyHarmonyWebsite customerAuth={customerAuth} />;
@@ -45,6 +50,7 @@ const missingClerkAuth = {
   provider: "clerk",
   isConfigured: false,
   isLoaded: true,
+  authVersion: "missing",
   user: null,
   openSignIn: () => {},
   openSignUp: () => {},

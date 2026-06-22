@@ -171,6 +171,19 @@ function mergeCartItems(...groups) {
   return cleanCartItems(groups.flatMap((group) => (Array.isArray(group) ? group : [])));
 }
 
+function mergeSavedCartItems(...groups) {
+  const byProductId = new Map();
+
+  groups.flatMap((group) => (Array.isArray(group) ? cleanCartItems(group) : [])).forEach((item) => {
+    const productId = String(item?.productId || "").trim();
+    if (!productId) return;
+    const quantity = Math.max(1, Math.min(99, Number.parseInt(item.quantity, 10) || 1));
+    byProductId.set(productId, Math.max(byProductId.get(productId) || 0, quantity));
+  });
+
+  return [...byProductId].map(([productId, quantity]) => ({ productId, quantity }));
+}
+
 function getCartCount(cartItems) {
   return cleanCartItems(cartItems).reduce((total, item) => total + item.quantity, 0);
 }
@@ -4341,6 +4354,8 @@ export function BeautyHarmonyWebsite({ customerAuth = null } = {}) {
 
     setIsCustomerLoading(true);
     setCustomerError("");
+    setCustomerUser(customerAuth.user);
+    setIsCustomerReady(true);
 
     getCustomerProfile(customerAuth.user)
       .then((profile) => {
@@ -4367,6 +4382,7 @@ export function BeautyHarmonyWebsite({ customerAuth = null } = {}) {
   }, [
     customerAuth?.isConfigured,
     customerAuth?.isLoaded,
+    customerAuth?.authVersion,
     customerAuth?.user?.uid,
     customerAuth?.user?.email,
     customerAuth?.user?.phoneNumber,
@@ -4482,7 +4498,7 @@ export function BeautyHarmonyWebsite({ customerAuth = null } = {}) {
     if (customerListsReadyUid === customerUser.uid) return;
 
     setFavoriteIds((current) => cleanFavoriteIds([...current, ...(customerProfile.favoriteIds || [])]));
-    setCartItems((current) => mergeCartItems(current, customerProfile.cartItems || []));
+    setCartItems((current) => mergeSavedCartItems(current, customerProfile.cartItems || []));
     setCustomerListsReadyUid(customerUser.uid);
   }, [customerListsReadyUid, customerProfile, customerUser]);
 
