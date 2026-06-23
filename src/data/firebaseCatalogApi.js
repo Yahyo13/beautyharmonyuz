@@ -120,10 +120,32 @@ export async function saveFirebaseCatalogProduct(product) {
     uzumCardPrice: normalizeAdminNumber(product.uzumCardPrice),
     sortOrder: Number.parseInt(product.sortOrder, 10) || 9999,
     isVisible: product.isVisible !== false,
+    isDeleted: false,
     updatedAtIso: new Date().toISOString(),
     updatedAt: firestoreApi.serverTimestamp(),
   };
 
   await firestoreApi.setDoc(firestoreApi.doc(db, "products", productId), payload, { merge: true });
   return payload;
+}
+
+export async function deleteFirebaseCatalogProduct(productId) {
+  const db = await getFirestoreDb();
+  if (!db) throw new Error("FIREBASE_NOT_CONFIGURED");
+
+  const cleanProductId = normalizeAdminText(productId);
+  if (!cleanProductId) throw new Error("PRODUCT_ID_REQUIRED");
+
+  await firestoreApi.setDoc(
+    firestoreApi.doc(db, "products", cleanProductId),
+    {
+      id: cleanProductId,
+      isVisible: false,
+      isDeleted: true,
+      deletedAtIso: new Date().toISOString(),
+      updatedAt: firestoreApi.serverTimestamp(),
+    },
+    { merge: true }
+  );
+  return { id: cleanProductId };
 }

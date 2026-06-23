@@ -1,4 +1,9 @@
 export const partnerRequestTypes = ["Оптовая Закупка", "Маркетплейс", "Розничная Сеть", "Дистрибуция"];
+export const partnerRequestStatuses = [
+  { value: "review", labelRu: "На рассмотрении", labelUz: "Ko'rib chiqilmoqda" },
+  { value: "accepted", labelRu: "Принята", labelUz: "Qabul qilindi" },
+  { value: "rejected", labelRu: "Отклонена", labelUz: "Rad etildi" },
+];
 
 const localizedTypeMap = new Map([
   ["Оптовая Закупка", "Оптовая Закупка"],
@@ -15,6 +20,11 @@ const localizedTypeMap = new Map([
 
 export function mapPartnerRequestType(value) {
   return localizedTypeMap.get(value) || value || partnerRequestTypes[0];
+}
+
+export function getPartnerRequestStatusLabel(status, language = "ru") {
+  const found = partnerRequestStatuses.find((item) => item.value === status) || partnerRequestStatuses[0];
+  return language === "uz" ? found.labelUz : found.labelRu;
 }
 
 export function formatUzbekPhoneNumber(value) {
@@ -97,6 +107,23 @@ export async function deletePartnerRequest(id) {
 
   if (!response.ok) {
     throw new Error(payload.message || "Partner request was not deleted");
+  }
+
+  return payload;
+}
+
+export async function updatePartnerRequestStatus(id, status) {
+  const response = await fetch(`/api/admin-requests?id=${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    credentials: "same-origin",
+    body: JSON.stringify({ status }),
+  });
+
+  const payload = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    throw new Error(payload.message || "Partner request status was not updated");
   }
 
   return payload;

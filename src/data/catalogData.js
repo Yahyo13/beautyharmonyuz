@@ -1005,7 +1005,7 @@ export const localCatalogProducts = [
 export const hiddenCatalogBrandSlugs = new Set(["mister-dez"]);
 
 export function isVisibleCatalogProduct(product) {
-  return !hiddenCatalogBrandSlugs.has(product?.brandSlug);
+  return product?.isVisible !== false && product?.isDeleted !== true && !hiddenCatalogBrandSlugs.has(product?.brandSlug);
 }
 
 export const catalogProducts = localCatalogProducts.filter(isVisibleCatalogProduct);

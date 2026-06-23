@@ -46,10 +46,13 @@ import {
   fetchPartnerRequests,
   formatUzbekPhoneNumber,
   getAdminSession,
+  getPartnerRequestStatusLabel,
   isValidUzbekPhoneNumber,
   loginAdmin,
   logoutAdmin,
+  partnerRequestStatuses,
   partnerRequestTypes,
+  updatePartnerRequestStatus,
 } from "./data/partnerRequestsApi";
 import {
   brands,
@@ -64,7 +67,6 @@ import {
   catalogApiUrl,
   catalogCategories,
   catalogFallbackSource,
-  catalogProducts,
   extractApiProducts,
   fallbackCatalogProducts,
   formatPrice,
@@ -78,7 +80,7 @@ import {
   isVisibleCatalogProduct,
   normalizeCatalogProduct,
 } from "./data/catalogData";
-import { fetchFirebaseCatalogProducts, saveFirebaseCatalogProduct } from "./data/firebaseCatalogApi";
+import { deleteFirebaseCatalogProduct, fetchFirebaseCatalogProducts, saveFirebaseCatalogProduct } from "./data/firebaseCatalogApi";
 import {
   createCustomerOrder,
   deleteCustomerOrder,
@@ -1426,13 +1428,27 @@ function HomePage() {
 // Короткое превью каталога на главной странице.
 function CatalogPreview() {
   const { language, t } = useLocale();
+  const [previewCatalogProducts, setPreviewCatalogProducts] = useState([]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    loadBestCatalogProducts().then(({ products }) => {
+      if (isMounted) setPreviewCatalogProducts(products);
+    });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
   const previewProducts = [
     "dr-sante-keratin-shampoo-250",
     "dr-sante-burdock-oil-100",
     "dr-sante-peptide-day-50",
     "dr-sante-hand-coconut-75",
   ]
-    .map((id) => catalogProducts.find((product) => product.id === id))
+    .map((id) => previewCatalogProducts.find((product) => product.id === id))
     .filter(Boolean);
 
   return (
@@ -1573,13 +1589,29 @@ async function loadCatalogFromMockApi() {
 async function loadBestCatalogProducts() {
   try {
     const firebaseProducts = await fetchFirebaseCatalogProducts();
+    const hiddenFirebaseProductKeys = new Set(
+      firebaseProducts
+        .filter((product) => product?.isVisible === false || product?.isDeleted === true)
+        .flatMap((product) => [
+          normalizeCatalogMergeText(product.id),
+          normalizeCatalogMergeText(product.barcode),
+        ])
+        .filter(Boolean)
+    );
+    const localProducts = hiddenFirebaseProductKeys.size > 0
+      ? fallbackCatalogProducts.filter((product) => {
+          const idKey = normalizeCatalogMergeText(product.id);
+          const barcodeKey = normalizeCatalogMergeText(product.barcode);
+          return !hiddenFirebaseProductKeys.has(idKey) && !(barcodeKey && hiddenFirebaseProductKeys.has(barcodeKey));
+        })
+      : fallbackCatalogProducts;
     const normalizedFirebaseProducts = firebaseProducts
       .map(normalizeCatalogProduct)
       .filter((product) => (product.nameRu || product.name) && isVisibleCatalogProduct(product));
 
-    if (normalizedFirebaseProducts.length > 0) {
+    if (normalizedFirebaseProducts.length > 0 || hiddenFirebaseProductKeys.size > 0) {
       return {
-        products: mergeCatalogProducts(normalizedFirebaseProducts, fallbackCatalogProducts),
+        products: mergeCatalogProducts(normalizedFirebaseProducts, localProducts),
         source: "firebase",
       };
     }
@@ -1608,7 +1640,7 @@ async function loadBestCatalogProducts() {
 
 function CatalogPage() {
   const { language, t } = useLocale();
-  const [catalogProducts, setCatalogProducts] = useState(fallbackCatalogProducts);
+  const [catalogProducts, setCatalogProducts] = useState([]);
   const [catalogSource, setCatalogSource] = useState("fallback");
   const [isLoadingCatalog, setIsLoadingCatalog] = useState(true);
   const [query, setQuery] = useState("");
@@ -1814,7 +1846,13 @@ function CatalogPage() {
           </div>
         </div>
 
-        {filteredProducts.length > 0 ? (
+        {isLoadingCatalog && catalogProducts.length === 0 ? (
+          <div className="catalog-empty reveal is-visible">
+            <RefreshCw size={32} aria-hidden="true" />
+            <h2>{language === "uz" ? "Katalog yuklanmoqda" : "Загружаем каталог"}</h2>
+            <p>{language === "uz" ? "Firebase ma'lumotlari tekshirilmoqda." : "Проверяем актуальные данные Firebase."}</p>
+          </div>
+        ) : filteredProducts.length > 0 ? (
           <div className="product-grid">
             {filteredProducts.map((product) => (
               <CatalogProductCard product={product} key={product.id} />
@@ -2234,7 +2272,7 @@ function AboutCompanyPage() {
 function FavoritesPage() {
   const { language, t } = useLocale();
   const { favoriteIds } = useFavorites();
-  const [catalogProducts, setCatalogProducts] = useState(fallbackCatalogProducts);
+  const [catalogProducts, setCatalogProducts] = useState([]);
   const [isLoadingCatalog, setIsLoadingCatalog] = useState(true);
 
   useEffect(() => {
@@ -2279,7 +2317,12 @@ function FavoritesPage() {
       </header>
 
       <section className="favorites-page">
-        {favoriteProducts.length > 0 ? (
+        {isLoadingCatalog ? (
+          <div className="catalog-empty reveal is-visible">
+            <RefreshCw size={34} aria-hidden="true" />
+            <h2>{t.favorites.loading}</h2>
+          </div>
+        ) : favoriteProducts.length > 0 ? (
           <div className="product-grid">
             {favoriteProducts.map((product) => (
               <CatalogProductCard product={product} key={product.id} />
@@ -2581,7 +2624,7 @@ function CartPage() {
   const { language, t } = useLocale();
   const { customerUser, customerProfile } = useCustomer();
   const { cartItems, cartCount, removeFromCart, updateCartQuantity, clearCart } = useCart();
-  const [catalogProducts, setCatalogProducts] = useState(fallbackCatalogProducts);
+  const [catalogProducts, setCatalogProducts] = useState([]);
   const [isLoadingCatalog, setIsLoadingCatalog] = useState(true);
   const [checkoutForm, setCheckoutForm] = useState({
     name: "",
@@ -2722,7 +2765,12 @@ function CartPage() {
       </header>
 
       <section className="cart-page">
-        {cartProducts.length > 0 ? (
+        {isLoadingCatalog ? (
+          <div className="catalog-empty reveal is-visible">
+            <RefreshCw size={34} aria-hidden="true" />
+            <h2>{t.favorites.loading}</h2>
+          </div>
+        ) : cartProducts.length > 0 ? (
           <>
             <div className="cart-list">
               {cartProducts.map(({ product, quantity }) => {
@@ -2937,10 +2985,10 @@ function B2BPage() {
         comment: form.comment.trim(),
       };
 
-      await createPartnerRequest({ ...form, turnstileToken });
+      const savedRequest = await createPartnerRequest({ ...form, turnstileToken });
       setStatus(t.b2b.status);
       setStatusType("success");
-      setSubmittedRequest(requestPreview);
+      setSubmittedRequest({ ...requestPreview, status: savedRequest.status || "review" });
       resetTurnstile();
       setForm({
         company: "",
@@ -2967,6 +3015,7 @@ function B2BPage() {
       { label: t.b2b.city, value: submittedRequest.city },
       { label: t.b2b.company, value: submittedRequest.company },
       { label: t.b2b.formatLabel, value: submittedRequest.type },
+      { label: language === "uz" ? "Status" : "Статус", value: getPartnerRequestStatusLabel(submittedRequest.status || "review", language) },
       { label: t.b2b.brands, value: submittedRequest.brands || t.b2b.emptyValue },
       { label: t.b2b.comment, value: submittedRequest.comment || t.b2b.emptyValue },
     ]
@@ -3250,6 +3299,7 @@ function AdminPage() {
         getRequestField(request, ["city"]),
         getRequestField(request, ["company"]),
         requestType,
+        getPartnerRequestStatusLabel(request.status || "review", "ru"),
         getRequestField(request, ["brands"]),
         getRequestField(request, ["comment", "message"]),
       ]
@@ -3542,6 +3592,37 @@ function productToAdminForm(product = {}) {
   };
 }
 
+function readProductImageFile(file) {
+  return new Promise((resolve, reject) => {
+    if (!file) {
+      reject(new Error("FILE_MISSING"));
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error("FILE_READ_FAILED"));
+    reader.onload = () => {
+      const image = new Image();
+      image.onerror = () => reject(new Error("IMAGE_LOAD_FAILED"));
+      image.onload = () => {
+        const maxSize = 720;
+        const scale = Math.min(1, maxSize / Math.max(image.width, image.height));
+        const width = Math.max(1, Math.round(image.width * scale));
+        const height = Math.max(1, Math.round(image.height * scale));
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        const context = canvas.getContext("2d");
+        context.clearRect(0, 0, width, height);
+        context.drawImage(image, 0, 0, width, height);
+        resolve(canvas.toDataURL("image/webp", 0.82));
+      };
+      image.src = String(reader.result || "");
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
 function isLikelyPartnerRequest(request) {
   if (!request || typeof request !== "object") return false;
   if (Array.isArray(request.items) || request.productId || request.price || request.nameRu) return false;
@@ -3573,9 +3654,12 @@ function AdminDashboard() {
   const [orderStatusFilter, setOrderStatusFilter] = useState("all");
   const [loadStatus, setLoadStatus] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [updatingRequestId, setUpdatingRequestId] = useState("");
   const [updatingOrderId, setUpdatingOrderId] = useState("");
   const [savingProduct, setSavingProduct] = useState(false);
   const [deletingOrderId, setDeletingOrderId] = useState("");
+  const [deletingProductId, setDeletingProductId] = useState("");
+  const [isProcessingProductImage, setIsProcessingProductImage] = useState(false);
   const [selectedThreadId, setSelectedThreadId] = useState("");
   const [supportReply, setSupportReply] = useState("");
   const [isSendingSupportReply, setIsSendingSupportReply] = useState(false);
@@ -3615,7 +3699,7 @@ function AdminDashboard() {
       setOrders(nextOrders);
       setSupportThreads(nextSupportThreads);
       setSelectedThreadId((current) => current || nextSupportThreads[0]?.id || "");
-      setAdminProducts(nextProducts.map(normalizeCatalogProduct));
+      setAdminProducts(nextProducts.map(normalizeCatalogProduct).filter(isVisibleCatalogProduct));
     } catch (error) {
       console.warn("[Admin] dashboard load failed:", error);
       setLoadStatus("Не удалось загрузить данные. Проверьте Firebase/API и обновите страницу.");
@@ -3671,6 +3755,7 @@ function AdminDashboard() {
         getRequestField(request, ["city"]),
         getRequestField(request, ["company"]),
         requestType,
+        getPartnerRequestStatusLabel(request.status || "review", "ru"),
         getRequestField(request, ["brands"]),
         getRequestField(request, ["comment", "message"]),
       ].join(" ").toLowerCase();
@@ -3737,6 +3822,28 @@ function AdminDashboard() {
       setRequests((current) => current.filter((item) => item.id !== request.id));
     } catch {
       setLoadStatus("Не удалось удалить заявку.");
+    }
+  };
+
+  const changePartnerRequestStatus = async (requestId, status) => {
+    if (!requestId) return;
+    setUpdatingRequestId(requestId);
+    setLoadStatus("");
+
+    try {
+      const saved = await updatePartnerRequestStatus(requestId, status);
+      setRequests((current) =>
+        current.map((request) =>
+          request.id === requestId
+            ? { ...request, ...saved, status }
+            : request
+        )
+      );
+    } catch (error) {
+      console.warn("[Admin] B2B status update failed:", error);
+      setLoadStatus("Не удалось обновить статус B2B-заявки.");
+    } finally {
+      setUpdatingRequestId("");
     }
   };
 
@@ -3817,6 +3924,31 @@ function AdminDashboard() {
     });
   };
 
+  const handleProductImageFileChange = async (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      setProductStatus("Выберите файл картинки.");
+      return;
+    }
+
+    setIsProcessingProductImage(true);
+    setProductStatus("");
+
+    try {
+      const dataUrl = await readProductImageFile(file);
+      setProductForm((current) => ({ ...current, image: dataUrl }));
+      setProductStatus("Картинка выбрана. Нажмите сохранить, чтобы обновить товар.");
+    } catch (error) {
+      console.warn("[Admin] product image read failed:", error);
+      setProductStatus("Не удалось обработать картинку.");
+    } finally {
+      setIsProcessingProductImage(false);
+    }
+  };
+
   const startNewProduct = () => {
     setEditingProductId("");
     setProductForm(createEmptyAdminProductForm());
@@ -3853,6 +3985,28 @@ function AdminDashboard() {
       setProductStatus("Не удалось сохранить товар. Проверьте правила Firestore.");
     } finally {
       setSavingProduct(false);
+    }
+  };
+
+  const removeProduct = async () => {
+    const productId = editingProductId || productForm.id;
+    if (!productId || deletingProductId) return;
+    if (!window.confirm(`Удалить товар #${productId}?`)) return;
+
+    setDeletingProductId(productId);
+    setProductStatus("");
+
+    try {
+      await deleteFirebaseCatalogProduct(productId);
+      setAdminProducts((current) => current.filter((product) => product.id !== productId));
+      setEditingProductId("");
+      setProductForm(createEmptyAdminProductForm());
+      setProductStatus("Товар удалён из Firebase.");
+    } catch (error) {
+      console.warn("[Admin] product delete failed:", error);
+      setProductStatus("Не удалось удалить товар.");
+    } finally {
+      setDeletingProductId("");
     }
   };
 
@@ -4143,6 +4297,7 @@ function AdminDashboard() {
               const phoneNumber = getRequestField(request, ["phoneNumber", "phone", "phone number"]);
               const comment = getRequestField(request, ["comment", "message"]);
               const requestType = getRequestField(request, ["type", "format"]);
+              const requestStatus = request.status || "review";
 
               return (
                 <article className="admin-request-card" key={request.id || `${request.name}-${request.createdAt}`}>
@@ -4168,10 +4323,26 @@ function AdminDashboard() {
                       <dt>Бренды</dt>
                       <dd>{getRequestField(request, ["brands"]) || "Не указаны"}</dd>
                     </div>
+                    <div>
+                      <dt>Статус</dt>
+                      <dd>{getPartnerRequestStatusLabel(requestStatus, "ru")}</dd>
+                    </div>
                   </dl>
                   {comment && <p>{comment}</p>}
                   <div className="admin-request-card__footer">
                     <small>{formatRequestDate(request.createdAt)}</small>
+                    <select
+                      className="admin-status-select"
+                      value={requestStatus}
+                      onChange={(event) => changePartnerRequestStatus(request.id, event.target.value)}
+                      disabled={!request.id || updatingRequestId === request.id}
+                    >
+                      {partnerRequestStatuses.map((status) => (
+                        <option value={status.value} key={status.value}>
+                          {status.labelRu}
+                        </option>
+                      ))}
+                    </select>
                     <button className="admin-delete-button" type="button" onClick={() => deleteRequest(request)} disabled={!request.id}>
                       <Trash2 size={17} aria-hidden="true" />
                       <span>Удалить</span>
@@ -4253,6 +4424,19 @@ function AdminDashboard() {
               <input name="image" value={productForm.image} onChange={handleProductFormChange} placeholder="products/dr-sante-clean/product.webp или https://..." />
             </label>
 
+            <div className="admin-product-image-tools">
+              <label className="admin-file-button">
+                <input type="file" accept="image/*" onChange={handleProductImageFileChange} disabled={isProcessingProductImage || savingProduct} />
+                <ShoppingBag size={17} aria-hidden="true" />
+                <span>{isProcessingProductImage ? "Обрабатываем..." : "Выбрать с компьютера"}</span>
+              </label>
+              {productForm.image && (
+                <figure className="admin-product-image-preview">
+                  <img src={productForm.image} alt="Предпросмотр товара" />
+                </figure>
+              )}
+            </div>
+
             <label>
               Ссылка
               <input name="href" value={productForm.href} onChange={handleProductFormChange} placeholder="https://..." />
@@ -4287,9 +4471,17 @@ function AdminDashboard() {
               </label>
             </div>
 
-            <AppButton type="submit" icon={editingProductId ? Edit3 : PackagePlus} disabled={savingProduct}>
-              {savingProduct ? "Сохраняем..." : editingProductId ? "Сохранить изменения" : "Добавить товар"}
-            </AppButton>
+            <div className="admin-product-form__actions">
+              <AppButton type="submit" icon={editingProductId ? Edit3 : PackagePlus} disabled={savingProduct || isProcessingProductImage || Boolean(deletingProductId)}>
+                {savingProduct ? "Сохраняем..." : editingProductId ? "Сохранить изменения" : "Добавить товар"}
+              </AppButton>
+              {editingProductId && (
+                <button className="admin-delete-button" type="button" onClick={removeProduct} disabled={savingProduct || Boolean(deletingProductId)}>
+                  <Trash2 size={17} aria-hidden="true" />
+                  <span>{deletingProductId ? "Удаляем..." : "Удалить товар"}</span>
+                </button>
+              )}
+            </div>
 
             {productStatus && <p className={`form-status${productStatus.includes("Не удалось") ? " is-error" : ""}`}>{productStatus}</p>}
           </form>

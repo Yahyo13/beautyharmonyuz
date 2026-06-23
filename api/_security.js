@@ -2,6 +2,7 @@ import { createHash, createHmac, pbkdf2Sync, randomBytes, timingSafeEqual } from
 
 export const sessionCookieName = "bh_admin_session";
 export const partnerRequestTypes = ["Оптовая Закупка", "Маркетплейс", "Розничная Сеть", "Дистрибуция"];
+export const partnerRequestStatuses = ["review", "accepted", "rejected"];
 export const monthlyPartnerRequestLimit = Number(process.env.PARTNER_REQUEST_LIMIT_PER_MONTH || 3);
 
 const localizedTypeMap = new Map([
@@ -106,6 +107,7 @@ export function normalizePartnerRequest(form) {
     type: mapPartnerRequestType(form.type),
     brands: String(form.brands || "").trim(),
     comment: String(form.comment || "").trim(),
+    status: partnerRequestStatuses.includes(form.status) ? form.status : "review",
     createdAt: new Date().toISOString(),
   };
 }
