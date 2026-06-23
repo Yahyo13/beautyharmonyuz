@@ -249,6 +249,7 @@ const CartContext = React.createContext({
 const CustomerContext = React.createContext({
   customerUser: null,
   customerProfile: null,
+  customerAuthProvider: "",
   isCustomerReady: false,
   isCustomerLoading: false,
   isCustomerAuthConfigured: false,
@@ -381,7 +382,7 @@ function Shell({ route, children }) {
   const { colorMode, setColorMode } = useAppearance();
   const { favoriteIds } = useFavorites();
   const { cartCount } = useCart();
-  const { customerUser, customerProfile, isCustomerReady } = useCustomer();
+  const { customerUser, customerProfile, customerAuthProvider, isCustomerReady, openCustomerSignIn } = useCustomer();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isCustomerPanelOpen, setIsCustomerPanelOpen] = useState(false);
   const [authNotice, setAuthNotice] = useState("");
@@ -402,13 +403,17 @@ function Shell({ route, children }) {
     const handleAuthRequired = (event) => {
       const message = event.detail?.message || (language === "uz" ? "Avval profilga kiring." : "Сначала войдите в профиль.");
       setAuthNotice(message);
-      setIsCustomerPanelOpen(true);
+      if (!customerUser && customerAuthProvider === "clerk") {
+        openCustomerSignIn();
+      } else {
+        setIsCustomerPanelOpen(true);
+      }
       window.setTimeout(() => setAuthNotice(""), 3200);
     };
 
     window.addEventListener("beauty-harmony-auth-required", handleAuthRequired);
     return () => window.removeEventListener("beauty-harmony-auth-required", handleAuthRequired);
-  }, [language]);
+  }, [customerAuthProvider, customerUser, language, openCustomerSignIn]);
 
   const scrollToHomeTop = () => {
     setIsMenuOpen(false);
@@ -419,6 +424,14 @@ function Shell({ route, children }) {
 
   const closeMenu = () => {
     setIsMenuOpen(false);
+  };
+
+  const handleProfileLinkClick = (event) => {
+    closeMenu();
+    if (!customerUser && customerAuthProvider === "clerk") {
+      event.preventDefault();
+      requestCustomerSignIn(language === "uz" ? "Profilga kirish kerak." : "Сначала войдите в профиль.");
+    }
   };
 
   return (
@@ -479,7 +492,7 @@ function Shell({ route, children }) {
           {cartCount > 0 && <b>{cartCount}</b>}
         </a>
 
-        <a className={`profile-top-button${route === "/profile" ? " is-active" : ""}`} href="#/profile" onClick={closeMenu}>
+        <a className={`profile-top-button${route === "/profile" ? " is-active" : ""}`} href="#/profile" onClick={handleProfileLinkClick}>
           <UserRound size={17} aria-hidden="true" />
           <span>{customerUser ? customerName || t.common.profile : t.common.signIn}</span>
         </a>
@@ -1088,11 +1101,9 @@ function CustomerPanel({ isOpen, onClose }) {
       return;
     }
 
+    if (flow === "signup") openCustomerSignUp();
+    else openCustomerSignIn();
     onClose();
-    window.setTimeout(() => {
-      if (flow === "signup") openCustomerSignUp();
-      else openCustomerSignIn();
-    }, 0);
   };
 
   async function handleSaveProfile(event) {
@@ -4873,6 +4884,7 @@ export function BeautyHarmonyWebsite({ customerAuth = null } = {}) {
     () => ({
       customerUser,
       customerProfile,
+      customerAuthProvider: usesExternalCustomerAuth ? customerAuth?.provider || "" : "firebase",
       isCustomerReady,
       isCustomerLoading,
       isCustomerAuthConfigured,
@@ -4891,6 +4903,7 @@ export function BeautyHarmonyWebsite({ customerAuth = null } = {}) {
       customerError,
       customerProfile,
       customerUser,
+      customerAuth?.provider,
       completeCustomerSignInLink,
       isCustomerAuthConfigured,
       isCustomerLoading,
