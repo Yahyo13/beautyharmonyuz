@@ -4824,18 +4824,30 @@ export function BeautyHarmonyWebsite({ customerAuth = null } = {}) {
     setIsCustomerLoading(true);
     setCustomerError("");
     try {
+      window.clearTimeout(saveCustomerCollectionsTimeoutRef.current);
+
+      if (customerUser?.uid && customerListsReadyUid === customerUser.uid) {
+        try {
+          await saveCustomerCollections(customerUser.uid, { favoriteIds, cartItems });
+        } catch (error) {
+          console.warn("[Customer] collections save before logout failed:", error);
+        }
+      }
+
       if (usesExternalCustomerAuth) await customerAuth?.signOut?.();
       else await signOutCustomer();
       setCustomerUser(null);
       setCustomerProfile(null);
       setCustomerListsReadyUid("");
+      setFavoriteIds([]);
+      setCartItems([]);
     } catch (error) {
       setCustomerError(error?.message || "Logout failed");
       throw error;
     } finally {
       setIsCustomerLoading(false);
     }
-  }, [customerAuth, usesExternalCustomerAuth]);
+  }, [cartItems, customerAuth, customerListsReadyUid, customerUser, favoriteIds, usesExternalCustomerAuth]);
 
   const content = useMemo(() => {
     if (route === "/" || route === "") return <HomePage />;
