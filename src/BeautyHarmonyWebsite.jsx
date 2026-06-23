@@ -1468,7 +1468,6 @@ function BrandsSection() {
       <div className="section-heading reveal">
         <span>{t.brandsPage.label}</span>
         <h2>{t.brandsPage.title}</h2>
-        <p>{t.brandsPage.text}</p>
       </div>
 
       <div className="brand-grid">
@@ -1721,20 +1720,6 @@ function CatalogPage() {
   };
 
   const hasFilters = query || brandFilter !== "all" || category !== "all" || sort !== "default";
-  const sourceNote =
-    catalogSource === "firebase"
-      ? language === "uz"
-        ? "Katalog Firebase Firestore bazasidan yuklandi."
-        : "Каталог загружен из Firebase Firestore."
-      : catalogSource === "api"
-      ? t.catalog.sourceNote
-      : language === "uz"
-        ? catalogFallbackSource.noteUz
-        : catalogFallbackSource.noteRu;
-  const catalogSourceText = language === "uz"
-    ? "Katalog Beauty Harmony ma'lumotlar bazasidan yuklandi. Narx va tavsiflarni admin panelda yangilash mumkin."
-    : "Каталог загружен из базы Beauty Harmony. Цены и описания можно обновлять в админ-панели.";
-
   return (
     <>
       <header className="catalog-hero">
@@ -1744,7 +1729,6 @@ function CatalogPage() {
             {language === "uz" ? "Beauty Harmony katalogi" : "Каталог Beauty Harmony"}
           </span>
           <h1>{t.catalog.title}</h1>
-          <p>{language === "uz" ? "Brend, kategoriya, narx va vazifa bo'yicha tanlash uchun qulay mahsulot vitrinası." : "Удобная витрина товаров с фильтрами по бренду, категории, цене и назначению."}</p>
           <div className="hero-actions">
             <AppButton href="#/brands" variant="secondary" icon={Palette}>
               {t.common.viewBrands}
@@ -1828,7 +1812,6 @@ function CatalogPage() {
             </span>
             <h2>{t.catalog.found}</h2>
           </div>
-          <p>{catalogSourceText}</p>
         </div>
 
         {filteredProducts.length > 0 ? (
@@ -2424,6 +2407,7 @@ function ProfilePage() {
   const [orders, setOrders] = useState([]);
   const [isLoadingOrders, setIsLoadingOrders] = useState(false);
   const [orderStatus, setOrderStatus] = useState("");
+  const [cancellingOrderId, setCancellingOrderId] = useState("");
   const [isPanelOpen, setIsPanelOpen] = useState(false);
   const customerName = getCustomerDisplayName(customerProfile);
 
@@ -2455,6 +2439,31 @@ function ProfilePage() {
 
   const activeOrders = orders.filter((order) => !["delivered", "cancelled"].includes(order.status));
   const closedOrders = orders.filter((order) => ["delivered", "cancelled"].includes(order.status));
+
+  async function handleCancelOrder(order) {
+    if (!order?.id || order.status !== "new" || cancellingOrderId) return;
+
+    const confirmed = window.confirm(language === "uz" ? "Buyurtmani bekor qilasizmi?" : "Отменить заказ?");
+    if (!confirmed) return;
+
+    setOrderStatus("");
+    setCancellingOrderId(order.id);
+
+    try {
+      const saved = await updateCustomerOrderStatus(order.id, "cancelled");
+      setOrders((currentOrders) =>
+        currentOrders.map((currentOrder) =>
+          currentOrder.id === order.id
+            ? { ...currentOrder, ...saved, status: "cancelled" }
+            : currentOrder
+        )
+      );
+    } catch {
+      setOrderStatus(language === "uz" ? "Buyurtmani bekor qilib bo'lmadi." : "Не удалось отменить заказ.");
+    } finally {
+      setCancellingOrderId("");
+    }
+  }
 
   if (!customerUser) {
     return (
@@ -2532,6 +2541,21 @@ function ProfilePage() {
                     </li>
                   ))}
                 </ul>
+                {order.status === "new" && (
+                  <button
+                    className="profile-order-cancel"
+                    type="button"
+                    onClick={() => handleCancelOrder(order)}
+                    disabled={cancellingOrderId === order.id}
+                  >
+                    <X size={16} aria-hidden="true" />
+                    <span>
+                      {cancellingOrderId === order.id
+                        ? language === "uz" ? "Bekor qilinmoqda..." : "Отменяем..."
+                        : language === "uz" ? "Buyurtmani bekor qilish" : "Отменить заказ"}
+                    </span>
+                  </button>
+                )}
               </article>
             ))}
           </div>
@@ -2957,7 +2981,6 @@ function B2BPage() {
             {t.b2b.eyebrow}
           </span>
           <h1>{t.b2b.title}</h1>
-          <p>{t.b2b.intro}</p>
         </div>
       </header>
 
@@ -3853,7 +3876,6 @@ function AdminDashboard() {
             Admin
           </span>
           <h2>Вход в админ-панель</h2>
-          <p>После входа доступны B2B заявки, заказы из корзины и управление товарами Firebase.</p>
 
           <label>
             Логин
@@ -4302,7 +4324,6 @@ function MarketCta() {
       <div>
         <span>{t.common.marketplace}</span>
         <h2>{t.market.title}</h2>
-        <p>{t.market.text}</p>
       </div>
       <AppButton href={uzumShopUrl} icon={ShoppingBag}>
         {t.common.goToUzum}

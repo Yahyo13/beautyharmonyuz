@@ -126,7 +126,7 @@ export const ui = {
     brandsPage: {
       label: "Бренды",
       title: "Кликните на бренд и откройте его страницу",
-      text: "На карточках показаны ключевые цифры, производитель и главная категория.",
+      text: "",
       more: "Подробнее о бренде",
     },
     catalog: {
@@ -238,7 +238,7 @@ export const ui = {
     },
     market: {
       title: "Товары Beauty Harmony в Uzum Market",
-      text: "Кнопка ведет на страницу магазина Beauty Harmony, где покупатель может посмотреть карточки товаров.",
+      text: "",
     },
     footer: {
       text: "Каталог брендов, страницы производителей и отдельная форма B2B-заявки.",
@@ -366,7 +366,7 @@ export const ui = {
     brandsPage: {
       label: "Brendlar",
       title: "Brendni bosing va uning sahifasini oching",
-      text: "Kartochkalarda asosiy raqamlar, ishlab chiqaruvchi va bosh kategoriya ko'rsatilgan.",
+      text: "",
       more: "Brend haqida batafsil",
     },
     catalog: {
@@ -478,7 +478,7 @@ export const ui = {
     },
     market: {
       title: "Beauty Harmony tovarlari Uzum Marketda",
-      text: "Tugma Beauty Harmony do'koni sahifasiga olib boradi, u yerda xaridor tovar kartochkalarini ko'rishi mumkin.",
+      text: "",
     },
     footer: {
       text: "Brendlar katalogi, ishlab chiqaruvchi sahifalari va alohida B2B ariza formasi.",

@@ -5585,6 +5585,35 @@ footer p {
   color: #1f2d25;
 }
 
+.profile-order-cancel {
+  justify-self: start;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 0 14px;
+  border: 1px solid rgba(197, 40, 72, 0.2);
+  border-radius: 999px;
+  color: #b42345;
+  background: #fff1f4;
+  box-shadow: 0 12px 28px rgba(197, 40, 72, 0.1);
+  font-size: 0.86rem;
+  font-weight: 1000;
+  cursor: pointer;
+  transition: transform 180ms ease, border-color 180ms ease, background 180ms ease;
+}
+
+.profile-order-cancel:hover:not(:disabled) {
+  transform: translateY(-1px);
+  border-color: rgba(197, 40, 72, 0.34);
+  background: #ffe6eb;
+}
+
+.profile-order-cancel:disabled {
+  cursor: wait;
+  opacity: 0.68;
+}
+
 .support-panel__head {
   display: flex;
   align-items: center;
@@ -5828,6 +5857,17 @@ footer p {
 :root[data-theme="dark"] .profile-order-card p,
 :root[data-theme="dark"] .support-empty {
   color: #cbd7ce;
+}
+
+:root[data-theme="dark"] .profile-order-cancel {
+  border-color: rgba(255, 122, 145, 0.28);
+  color: #ffd6de;
+  background: rgba(255, 93, 117, 0.12);
+  box-shadow: none;
+}
+
+:root[data-theme="dark"] .profile-order-cancel:hover:not(:disabled) {
+  background: rgba(255, 93, 117, 0.18);
 }
 
 :root[data-theme="dark"] .support-messages,
