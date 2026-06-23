@@ -1440,7 +1440,6 @@ function CatalogPreview() {
       <div className="catalog-preview__copy">
         <span>{language === "uz" ? "Katalogdagi tovarlar" : "Товары каталога"}</span>
         <h2>{t.catalogPreview.title}</h2>
-        <p>{language === "uz" ? "Kartochkalarda narx, rasm, brend va savatga qo'shish tugmasi bor." : "В карточках есть цена, фото, бренд и кнопка добавления в корзину."}</p>
         <AppButton href="#/catalog" icon={ShoppingBag}>
           {t.common.openCatalog}
         </AppButton>

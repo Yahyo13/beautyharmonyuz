@@ -103,7 +103,7 @@ export const ui = {
       assortmentLabel: "Понятный ассортимент",
       assortmentTitle: "От фруктового body-care до семейного ухода",
       assortmentText:
-        "Сайт работает как мини-каталог: на главной виден общий портфель, а внутри каждой карточки есть отдельная страница с фактами, стилем бренда и подробным описанием. Green Pharmacy выглядит натурально, Fresh Juice - ярко и фруктово, Lady Caramel - карамельно и гладко, Pink Elephant - мягко и по-детски.",
+        "Ассортимент Beauty Harmony собран для разных ежедневных задач: уход за волосами и лицом, body-care, депиляция, детская линейка, мужской уход и товары для чистого дома. Бренды легко сравнить по назначению, настроению и формату покупки.",
       clarityLabel: "Как читать каталог",
       clarityTitle: "Каждый бренд закрывает свою задачу",
       naturalTitle: "Натуральный уход",
@@ -343,7 +343,7 @@ export const ui = {
       assortmentLabel: "Tushunarli assortiment",
       assortmentTitle: "Mevali body-care'dan oilaviy parvarishgacha",
       assortmentText:
-        "Sayt mini-katalog kabi ishlaydi: asosiy sahifada umumiy portfel ko'rinadi, har bir kartochkada esa faktlar, brend uslubi va batafsil tavsif berilgan alohida sahifa bor. Green Pharmacy tabiiy, Fresh Juice yorqin va mevali, Lady Caramel yumshoq depilyatsiya, Pink Elephant esa bolalarcha mayin kayfiyatda.",
+        "Beauty Harmony assortimenti kundalik ehtiyojlar uchun yig'ilgan: soch va yuz parvarishi, body-care, depilyatsiya, bolalar liniyasi, erkaklar parvarishi va toza uy uchun mahsulotlar. Brendlarni vazifasi, kayfiyati va xarid formati bo'yicha solishtirish oson.",
       clarityLabel: "Katalogni qanday o'qish kerak",
       clarityTitle: "Har bir brend o'z vazifasini yopadi",
       naturalTitle: "Tabiiy parvarish",
