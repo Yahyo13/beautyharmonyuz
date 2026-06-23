@@ -44,6 +44,7 @@ import {
   createPartnerRequest,
   deletePartnerRequest,
   fetchPartnerRequests,
+  fetchPartnerRequestStatus,
   formatUzbekPhoneNumber,
   getAdminSession,
   getPartnerRequestStatusLabel,
@@ -2895,6 +2896,10 @@ function B2BPage() {
   const [turnstileToken, setTurnstileToken] = useState("");
   const [captchaResetKey, setCaptchaResetKey] = useState(0);
   const [submittedRequest, setSubmittedRequest] = useState(null);
+  const [statusLookupPhone, setStatusLookupPhone] = useState("+998 ");
+  const [statusLookupItems, setStatusLookupItems] = useState([]);
+  const [statusLookupError, setStatusLookupError] = useState("");
+  const [isCheckingRequestStatus, setIsCheckingRequestStatus] = useState(false);
   const [form, setForm] = useState({
     company: "",
     name: "",
@@ -2954,6 +2959,36 @@ function B2BPage() {
   const closeSuccessModal = useCallback(() => {
     setSubmittedRequest(null);
   }, []);
+
+  const handleStatusLookupPhoneChange = (event) => {
+    setStatusLookupPhone(formatUzbekPhoneNumber(event.target.value));
+    setStatusLookupError("");
+  };
+
+  const handleStatusLookup = async (event) => {
+    event.preventDefault();
+    setStatusLookupError("");
+    setStatusLookupItems([]);
+
+    if (!isValidUzbekPhoneNumber(statusLookupPhone)) {
+      setStatusLookupError(language === "uz" ? "Telefon raqamini +998 kodi bilan to'liq kiriting." : "Введите полный номер телефона с кодом +998.");
+      return;
+    }
+
+    setIsCheckingRequestStatus(true);
+
+    try {
+      const requests = await fetchPartnerRequestStatus(statusLookupPhone);
+      setStatusLookupItems(requests);
+      if (requests.length === 0) {
+        setStatusLookupError(language === "uz" ? "Bu raqam bo'yicha ariza topilmadi." : "По этому номеру заявка не найдена.");
+      }
+    } catch {
+      setStatusLookupError(language === "uz" ? "Statusni yuklab bo'lmadi." : "Не удалось загрузить статус заявки.");
+    } finally {
+      setIsCheckingRequestStatus(false);
+    }
+  };
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -3117,6 +3152,45 @@ function B2BPage() {
 
           {status && <p className={`form-status${statusType === "error" ? " is-error" : ""}`}>{status}</p>}
         </form>
+
+        <section className="request-status-panel">
+          <div>
+            <span>{language === "uz" ? "Ariza statusi" : "Статус заявки"}</span>
+            <h2>{language === "uz" ? "B2B arizani tekshirish" : "Проверить B2B-заявку"}</h2>
+          </div>
+
+          <form className="request-status-form" onSubmit={handleStatusLookup}>
+            <label>
+              {t.b2b.phone}
+              <input
+                value={statusLookupPhone}
+                onChange={handleStatusLookupPhoneChange}
+                placeholder="+998 90 123 45 67"
+                inputMode="tel"
+              />
+            </label>
+            <AppButton type="submit" icon={Search} disabled={isCheckingRequestStatus}>
+              {isCheckingRequestStatus
+                ? language === "uz" ? "Tekshirilmoqda..." : "Проверяем..."
+                : language === "uz" ? "Statusni ko'rish" : "Посмотреть статус"}
+            </AppButton>
+          </form>
+
+          {statusLookupError && <p className="form-status is-error">{statusLookupError}</p>}
+
+          {statusLookupItems.length > 0 && (
+            <div className="request-status-list">
+              {statusLookupItems.map((request) => (
+                <article key={request.id || `${request.company}-${request.createdAt}`}>
+                  <span>#{request.id ? request.id.slice(0, 12) : "B2B"}</span>
+                  <strong>{getPartnerRequestStatusLabel(request.status, language)}</strong>
+                  <p>{request.company || (language === "uz" ? "Kompaniya ko'rsatilmagan" : "Компания не указана")}</p>
+                  <small>{request.type || t.b2b.emptyValue} · {formatRequestDate(request.createdAt)}</small>
+                </article>
+              ))}
+            </div>
+          )}
+        </section>
       </section>
 
       {submittedRequest && (

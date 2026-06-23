@@ -129,6 +129,23 @@ export async function updatePartnerRequestStatus(id, status) {
   return payload;
 }
 
+export async function fetchPartnerRequestStatus(phoneNumber) {
+  const response = await fetch("/api/partner-request-status", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "same-origin",
+    body: JSON.stringify({ phoneNumber: formatUzbekPhoneNumber(phoneNumber) }),
+  });
+
+  const payload = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    throw new Error(payload.message || "Partner request status was not loaded");
+  }
+
+  return Array.isArray(payload.requests) ? payload.requests : [];
+}
+
 export async function loginAdmin(credentials) {
   const response = await fetch("/api/admin-login", {
     method: "POST",
