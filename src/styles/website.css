@@ -5728,8 +5728,14 @@ footer p {
 .admin-new-product,
 .admin-product-row button:hover,
 .cart-remove {
+  color: #ffffff;
   background: linear-gradient(135deg, #0b3d2a, #0f6b43 62%, #bf9b30);
   box-shadow: 0 16px 34px rgba(11, 61, 42, 0.22);
+}
+
+.app-button:not(.ghost) span,
+.app-button:not(.ghost) svg {
+  color: #ffffff;
 }
 
 .nav-links a:hover,
