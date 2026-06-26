@@ -1944,8 +1944,10 @@ function AddToCartButton({ product }) {
     window.requestAnimationFrame(() => setIsAdding(true));
   }
 
+  const cartButtonClassName = [isInCart ? "is-cart-added" : "", isAdding ? "is-cart-pulse" : ""].filter(Boolean).join(" ");
+
   return (
-    <AppButton onClick={handleAddToCart} icon={ShoppingCart} className={isAdding ? "is-cart-pulse" : ""}>
+    <AppButton onClick={handleAddToCart} icon={ShoppingCart} className={cartButtonClassName}>
       {isInCart ? t.cart.added : t.cart.add}
     </AppButton>
   );
