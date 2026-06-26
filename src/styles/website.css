@@ -6075,3 +6075,170 @@ footer p {
     display: none;
   }
 }
+
+/* Beauty Harmony premium green palette */
+.topbar {
+  border-color: rgba(9, 62, 38, 0.12);
+  background: rgba(255, 253, 245, 0.92);
+  box-shadow: 0 18px 52px rgba(9, 44, 30, 0.14);
+}
+
+.nav-links a:hover,
+.nav-links a.is-active {
+  color: #0a3d2a;
+  background: linear-gradient(135deg, rgba(11, 92, 54, 0.13), rgba(200, 160, 77, 0.16));
+}
+
+.app-button:not(.ghost),
+.admin-tabs button.is-active,
+.admin-new-product,
+.admin-product-row button:hover,
+.cart-remove {
+  color: #ffffff;
+  background: linear-gradient(135deg, #084126 0%, #0f6b43 62%, #c8a04d 100%);
+  box-shadow: 0 16px 34px rgba(8, 65, 38, 0.22);
+}
+
+.app-button:not(.ghost):hover {
+  box-shadow: 0 20px 42px rgba(8, 65, 38, 0.3);
+}
+
+.app-button.secondary {
+  color: #0a3d2a;
+  background: linear-gradient(135deg, rgba(252, 244, 214, 0.96), rgba(232, 214, 157, 0.9));
+  box-shadow: inset 0 0 0 1px rgba(200, 160, 77, 0.32);
+}
+
+.catalog-preview,
+.market-cta {
+  background:
+    linear-gradient(115deg, rgba(200, 160, 77, 0.12), transparent 31%),
+    radial-gradient(circle at 92% 14%, rgba(10, 85, 49, 0.14), transparent 30%),
+    linear-gradient(135deg, #f7f1df 0%, #fffdf4 47%, #eef5e9 100%);
+}
+
+.catalog-preview__copy span,
+.catalog-summary span {
+  display: inline-flex;
+  width: fit-content;
+  max-width: 100%;
+  padding: 8px 14px;
+  border: 1px solid rgba(200, 160, 77, 0.32);
+  border-radius: 999px;
+  color: #0a3d2a;
+  background: rgba(255, 248, 225, 0.92);
+  box-shadow: 0 12px 30px rgba(10, 61, 42, 0.08);
+}
+
+.catalog-preview__copy h2 {
+  color: #17202a;
+}
+
+.catalog-preview__copy p,
+.catalog-summary p {
+  color: #51606b;
+}
+
+.mini-product {
+  border-color: rgba(10, 61, 42, 0.13);
+  background:
+    linear-gradient(145deg, rgba(255, 253, 245, 0.94), rgba(255, 255, 255, 0.86)),
+    radial-gradient(circle at 100% 0%, rgba(200, 160, 77, 0.14), transparent 36%);
+  box-shadow: 0 16px 44px rgba(9, 44, 30, 0.1);
+}
+
+.product-card-site__front-meta span,
+.eyebrow {
+  color: #0f6b43;
+}
+
+.app-button.is-cart-pulse {
+  animation: cartPulse 720ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.app-button.is-cart-pulse svg {
+  animation: cartIconPop 720ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.admin-product-image-tools {
+  grid-template-columns: minmax(0, max-content) 64px;
+}
+
+.admin-file-button {
+  min-height: 36px;
+  padding: 8px 12px;
+  color: #ffffff;
+  background: linear-gradient(135deg, #084126, #0f6b43);
+  box-shadow: 0 10px 24px rgba(8, 65, 38, 0.2);
+  font-size: 0.78rem;
+}
+
+.admin-file-button span,
+.admin-file-button svg {
+  color: #ffffff;
+}
+
+@keyframes cartPulse {
+  0% {
+    transform: translateY(0) scale(1);
+  }
+  38% {
+    transform: translateY(-3px) scale(1.055);
+    box-shadow: 0 0 0 7px rgba(200, 160, 77, 0.18), 0 22px 42px rgba(8, 65, 38, 0.34);
+  }
+  100% {
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes cartIconPop {
+  0% {
+    transform: rotate(0deg) scale(1);
+  }
+  35% {
+    transform: rotate(-10deg) scale(1.22);
+  }
+  70% {
+    transform: rotate(8deg) scale(0.94);
+  }
+  100% {
+    transform: rotate(0deg) scale(1);
+  }
+}
+
+:root[data-theme="dark"] .topbar {
+  border-color: rgba(200, 160, 77, 0.16);
+  background: rgba(10, 24, 17, 0.9);
+  box-shadow: 0 18px 52px rgba(0, 0, 0, 0.34);
+}
+
+:root[data-theme="dark"] .catalog-preview,
+:root[data-theme="dark"] .market-cta {
+  background:
+    linear-gradient(115deg, rgba(200, 160, 77, 0.08), transparent 31%),
+    radial-gradient(circle at 92% 14%, rgba(18, 111, 68, 0.18), transparent 30%),
+    linear-gradient(135deg, #08140f 0%, #101810 48%, #172416 100%);
+}
+
+:root[data-theme="dark"] .catalog-preview__copy span,
+:root[data-theme="dark"] .catalog-summary span {
+  color: #f8efcf;
+  background: rgba(200, 160, 77, 0.14);
+  border-color: rgba(200, 160, 77, 0.28);
+}
+
+:root[data-theme="dark"] .catalog-preview__copy h2 {
+  color: #f5fff8;
+}
+
+:root[data-theme="dark"] .catalog-preview__copy p,
+:root[data-theme="dark"] .catalog-summary p {
+  color: #d4ddcf;
+}
+
+:root[data-theme="dark"] .mini-product {
+  border-color: rgba(200, 160, 77, 0.16);
+  background:
+    linear-gradient(145deg, rgba(17, 27, 20, 0.95), rgba(14, 23, 18, 0.92)),
+    radial-gradient(circle at 100% 0%, rgba(200, 160, 77, 0.08), transparent 36%);
+}

@@ -289,13 +289,13 @@ function requestCustomerSignIn(message = "") {
 }
 
 // Общая кнопка сайта. Используется как <a>, если передан href, и как <button> без href.
-function AppButton({ href, children, variant = "primary", icon: Icon, type = "button", onClick, disabled = false }) {
-  const className = `app-button ${variant}`;
+function AppButton({ href, children, variant = "primary", icon: Icon, type = "button", onClick, disabled = false, className = "" }) {
+  const buttonClassName = `app-button ${variant}${className ? ` ${className}` : ""}`;
 
   if (href) {
     const isExternal = href.startsWith("http");
     return (
-      <a className={className} href={href} target={isExternal ? "_blank" : undefined} rel={isExternal ? "noreferrer" : undefined}>
+      <a className={buttonClassName} href={href} target={isExternal ? "_blank" : undefined} rel={isExternal ? "noreferrer" : undefined}>
         {Icon && <Icon size={18} aria-hidden="true" />}
         <span>{children}</span>
       </a>
@@ -303,7 +303,7 @@ function AppButton({ href, children, variant = "primary", icon: Icon, type = "bu
   }
 
   return (
-    <button className={className} type={type} onClick={onClick} disabled={disabled}>
+    <button className={buttonClassName} type={type} onClick={onClick} disabled={disabled}>
       {Icon && <Icon size={18} aria-hidden="true" />}
       <span>{children}</span>
     </button>
@@ -1455,7 +1455,7 @@ function CatalogPreview() {
   return (
     <section className="catalog-preview reveal">
       <div className="catalog-preview__copy">
-        <span>{language === "uz" ? "Katalogdagi tovarlar" : "Товары каталога"}</span>
+        <span>{t.catalogPreview.label}</span>
         <h2>{t.catalogPreview.title}</h2>
         <AppButton href="#/catalog" icon={ShoppingBag}>
           {t.common.openCatalog}
@@ -1923,7 +1923,14 @@ function AddToCartButton({ product }) {
   const { language, t } = useLocale();
   const { cartItems, addToCart } = useCart();
   const { customerUser } = useCustomer();
+  const [isAdding, setIsAdding] = useState(false);
   const isInCart = cartItems.some((item) => item.productId === product.id);
+
+  useEffect(() => {
+    if (!isAdding) return undefined;
+    const timeoutId = window.setTimeout(() => setIsAdding(false), 720);
+    return () => window.clearTimeout(timeoutId);
+  }, [isAdding]);
 
   function handleAddToCart(event) {
     event.preventDefault();
@@ -1933,10 +1940,12 @@ function AddToCartButton({ product }) {
       return;
     }
     addToCart(product.id);
+    setIsAdding(false);
+    window.requestAnimationFrame(() => setIsAdding(true));
   }
 
   return (
-    <AppButton onClick={handleAddToCart} icon={ShoppingCart}>
+    <AppButton onClick={handleAddToCart} icon={ShoppingCart} className={isAdding ? "is-cart-pulse" : ""}>
       {isInCart ? t.cart.added : t.cart.add}
     </AppButton>
   );
