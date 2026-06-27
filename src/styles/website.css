@@ -4813,10 +4813,16 @@ footer p {
     font-size: 2.8rem;
   }
 
+  .hero__image {
+    object-position: 70% center;
+    filter: brightness(0.9) saturate(1.12) contrast(1.08);
+    transform: scale(1);
+  }
+
   .hero__scrim {
     background:
-      linear-gradient(180deg, rgba(255, 249, 244, 0.92) 0%, rgba(255, 249, 244, 0.66) 52%, rgba(255, 249, 244, 0.88) 100%),
-      linear-gradient(90deg, rgba(255, 249, 244, 0.92), rgba(255, 249, 244, 0.3));
+      linear-gradient(180deg, rgba(255, 249, 244, 0.92) 0%, rgba(255, 249, 244, 0.72) 34%, rgba(255, 249, 244, 0.38) 58%, rgba(255, 249, 244, 0.58) 100%),
+      linear-gradient(90deg, rgba(255, 249, 244, 0.9) 0%, rgba(255, 249, 244, 0.58) 42%, rgba(255, 249, 244, 0.06) 100%);
   }
 
   .intro-band,
@@ -4977,6 +4983,17 @@ footer p {
 
   h2 {
     font-size: 2.1rem;
+  }
+
+  .hero__image {
+    object-position: 70% center;
+    filter: brightness(0.78) saturate(1.15) contrast(1.16);
+  }
+
+  .hero__scrim {
+    background:
+      linear-gradient(180deg, rgba(255, 249, 244, 0.94) 0%, rgba(255, 249, 244, 0.76) 32%, rgba(255, 249, 244, 0.24) 58%, rgba(255, 249, 244, 0.42) 100%),
+      linear-gradient(90deg, rgba(255, 249, 244, 0.9) 0%, rgba(255, 249, 244, 0.42) 38%, rgba(255, 249, 244, 0.02) 100%);
   }
 
   .hero,
