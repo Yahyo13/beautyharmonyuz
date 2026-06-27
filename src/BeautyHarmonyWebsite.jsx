@@ -4092,6 +4092,58 @@ function promoToAdminForm(promo = {}) {
   };
 }
 
+const financeConfirmedStatuses = new Set(["processing", "packed", "delivered"]);
+
+function isConfirmedFinanceOrder(order) {
+  return financeConfirmedStatuses.has(order?.status);
+}
+
+function getFinanceOrderDateKey(order) {
+  return String(order?.createdAtIso || order?.updatedAtIso || new Date().toISOString()).slice(0, 10);
+}
+
+function formatFinanceDate(date) {
+  return date.toISOString().slice(0, 10);
+}
+
+function addFinanceDays(date, amount) {
+  const nextDate = new Date(date);
+  nextDate.setDate(nextDate.getDate() + amount);
+  return nextDate;
+}
+
+function createFinanceDateRange(startDate, endDate) {
+  const days = [];
+  const cursor = new Date(startDate);
+  cursor.setHours(0, 0, 0, 0);
+  const end = new Date(endDate);
+  end.setHours(0, 0, 0, 0);
+
+  while (cursor.getTime() <= end.getTime()) {
+    days.push(formatFinanceDate(cursor));
+    cursor.setDate(cursor.getDate() + 1);
+  }
+
+  return days;
+}
+
+function buildFinancePolyline(items, valueKey, maxValue, width = 720, height = 260) {
+  const paddingX = 38;
+  const paddingY = 26;
+  const chartWidth = width - paddingX * 2;
+  const chartHeight = height - paddingY * 2;
+  const divisor = Math.max(1, items.length - 1);
+  const safeMax = Math.max(1, maxValue);
+
+  return items
+    .map((item, index) => {
+      const x = paddingX + (chartWidth * index) / divisor;
+      const y = paddingY + chartHeight - (chartHeight * (Number(item[valueKey]) || 0)) / safeMax;
+      return `${x.toFixed(1)},${y.toFixed(1)}`;
+    })
+    .join(" ");
+}
+
 function AdminDashboard() {
   const [session, setSession] = useState(null);
   const [isCheckingSession, setIsCheckingSession] = useState(true);
@@ -4109,6 +4161,8 @@ function AdminDashboard() {
   const [typeFilter, setTypeFilter] = useState("all");
   const [orderStatusFilter, setOrderStatusFilter] = useState("all");
   const [supportMode, setSupportMode] = useState("questions");
+  const [financeProductId, setFinanceProductId] = useState("all");
+  const [financePeriod, setFinancePeriod] = useState("30");
   const [loadStatus, setLoadStatus] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [updatingRequestId, setUpdatingRequestId] = useState("");
@@ -4274,7 +4328,10 @@ function AdminDashboard() {
     return [...new Set([...partnerRequestTypes, ...apiTypes])];
   }, [requests]);
 
-  const ordersTotal = useMemo(() => orders.reduce((sum, order) => sum + (Number(order.total) || 0), 0), [orders]);
+  const confirmedOrdersTotal = useMemo(
+    () => orders.filter(isConfirmedFinanceOrder).reduce((sum, order) => sum + (Number(order.total) || 0), 0),
+    [orders]
+  );
   const filteredSupportThreads = useMemo(
     () => supportThreads.filter((thread) => (thread.topic === "orders" ? "orders" : "questions") === supportMode),
     [supportMode, supportThreads]
@@ -4563,22 +4620,16 @@ function AdminDashboard() {
   ];
 
   const financeOrders = useMemo(() => {
-    const completed = orders.filter((order) => !["cancelled"].includes(order.status));
+    const confirmed = orders.filter(isConfirmedFinanceOrder);
+    const newOrders = orders.filter((order) => order.status === "new");
     const cancelled = orders.filter((order) => order.status === "cancelled");
-    const revenue = completed.reduce((sum, order) => sum + (Number(order.subtotal ?? order.total) || 0), 0);
-    const deliveryRevenue = completed.reduce((sum, order) => sum + (Number(order.deliveryPrice) || 0), 0);
-    const serviceRevenue = completed.reduce((sum, order) => sum + (Number(order.serviceFee) || 0), 0);
-    const byDate = new Map();
+    const revenue = confirmed.reduce((sum, order) => sum + (Number(order.subtotal ?? order.total) || 0), 0);
+    const deliveryRevenue = confirmed.reduce((sum, order) => sum + (Number(order.deliveryPrice) || 0), 0);
+    const serviceRevenue = confirmed.reduce((sum, order) => sum + (Number(order.serviceFee) || 0), 0);
+    const totalRevenue = confirmed.reduce((sum, order) => sum + (Number(order.total) || 0), 0);
     const byProduct = new Map();
 
-    orders.forEach((order) => {
-      const date = String(order.createdAtIso || "").slice(0, 10) || "Без даты";
-      const currentDate = byDate.get(date) || { date, orders: 0, cancelled: 0, total: 0 };
-      currentDate.orders += 1;
-      if (order.status === "cancelled") currentDate.cancelled += 1;
-      currentDate.total += Number(order.total) || 0;
-      byDate.set(date, currentDate);
-
+    confirmed.forEach((order) => {
       (order.items || []).forEach((item) => {
         const key = item.productId || item.titleRu || item.titleUz;
         const currentProduct = byProduct.get(key) || {
@@ -4593,16 +4644,75 @@ function AdminDashboard() {
       });
     });
 
+    const productOptions = [...byProduct.values()].sort((left, right) => right.quantity - left.quantity);
+    const endDate = new Date();
+    endDate.setHours(0, 0, 0, 0);
+    let startDate = addFinanceDays(endDate, -29);
+
+    if (financePeriod !== "all") {
+      startDate = addFinanceDays(endDate, -(Number(financePeriod) || 30) + 1);
+    } else if (confirmed.length) {
+      const oldestOrderDate = confirmed
+        .map((order) => new Date(`${getFinanceOrderDateKey(order)}T00:00:00`))
+        .sort((left, right) => left.getTime() - right.getTime())[0];
+      startDate = oldestOrderDate || startDate;
+    }
+
+    const byDate = new Map(
+      createFinanceDateRange(startDate, endDate).map((date) => [
+        date,
+        {
+          date,
+          orders: 0,
+          total: 0,
+          subtotal: 0,
+          delivery: 0,
+          service: 0,
+          productQuantity: 0,
+          productRevenue: 0,
+        },
+      ])
+    );
+
+    confirmed.forEach((order) => {
+      const date = getFinanceOrderDateKey(order);
+      if (!byDate.has(date)) return;
+
+      const currentDate = byDate.get(date);
+      currentDate.orders += 1;
+      currentDate.total += Number(order.total) || 0;
+      currentDate.subtotal += Number(order.subtotal ?? order.total) || 0;
+      currentDate.delivery += Number(order.deliveryPrice) || 0;
+      currentDate.service += Number(order.serviceFee) || 0;
+
+      (order.items || []).forEach((item) => {
+        const itemId = item.productId || item.titleRu || item.titleUz;
+        const matchesProduct = financeProductId === "all" || itemId === financeProductId;
+        if (!matchesProduct) return;
+        currentDate.productQuantity += Number(item.quantity) || 0;
+        currentDate.productRevenue += Number(item.subtotal) || 0;
+      });
+    });
+
+    const days = [...byDate.values()];
+    const maxTotal = Math.max(1, ...days.map((item) => item.total));
+    const maxProductQuantity = Math.max(1, ...days.map((item) => item.productQuantity));
+
     return {
-      completed,
+      confirmed,
+      newOrders,
       cancelled,
       revenue,
       deliveryRevenue,
       serviceRevenue,
-      byDate: [...byDate.values()].sort((left, right) => left.date.localeCompare(right.date)).slice(-14),
-      topProducts: [...byProduct.values()].sort((left, right) => right.quantity - left.quantity).slice(0, 8),
+      totalRevenue,
+      productOptions,
+      byDate: days,
+      topProducts: productOptions.slice(0, 8),
+      revenuePolyline: buildFinancePolyline(days, "total", maxTotal),
+      productPolyline: buildFinancePolyline(days, "productQuantity", maxProductQuantity),
     };
-  }, [orders]);
+  }, [financePeriod, financeProductId, orders]);
 
   if (isCheckingSession) {
     return (
@@ -4703,14 +4813,14 @@ function AdminDashboard() {
         </div>
       </header>
 
-      <div className="admin-stats">
+        <div className="admin-stats">
         <div>
           <strong>{orders.length}</strong>
           <span>заказов</span>
         </div>
         <div>
-          <strong>{ordersTotal ? formatPrice(ordersTotal, "ru") : "0 сум"}</strong>
-          <span>сумма заказов</span>
+          <strong>{confirmedOrdersTotal ? formatPrice(confirmedOrdersTotal, "ru") : "0 сум"}</strong>
+          <span>подтверждённая сумма</span>
         </div>
         <div>
           <strong>{adminProducts.length}</strong>
@@ -5248,66 +5358,122 @@ function AdminDashboard() {
         <section className="admin-finance">
           <div className="admin-finance-grid">
             <article>
-              <span>Заказы</span>
-              <strong>{orders.length}</strong>
-              <p>Отменено: {financeOrders.cancelled.length}</p>
+              <span>Подтверждённые заказы</span>
+              <strong>{financeOrders.confirmed.length}</strong>
+              <p>Новые: {financeOrders.newOrders.length} · отменено: {financeOrders.cancelled.length}</p>
             </article>
             <article>
-              <span>Товары</span>
+              <span>Товары проданы</span>
               <strong>{formatPrice(financeOrders.revenue, "ru")}</strong>
-              <p>Сумма товаров без отменённых заказов</p>
+              <p>Только в обработке, сборке и доставленные</p>
             </article>
             <article>
               <span>Доставка</span>
               <strong>{formatPrice(financeOrders.deliveryRevenue, "ru")}</strong>
-              <p>За всё время</p>
+              <p>За всё время по подтверждённым заказам</p>
             </article>
             <article>
               <span>Работа сервиса</span>
               <strong>{formatPrice(financeOrders.serviceRevenue, "ru")}</strong>
-              <p>За всё время</p>
+              <p>За всё время по подтверждённым заказам</p>
             </article>
+          </div>
+
+          <div className="admin-finance-filters">
+            <label>
+              Период
+              <select value={financePeriod} onChange={(event) => setFinancePeriod(event.target.value)}>
+                <option value="14">14 дней</option>
+                <option value="30">30 дней</option>
+                <option value="90">90 дней</option>
+                <option value="all">Всё время</option>
+              </select>
+            </label>
+            <label>
+              Товар для диаграммы
+              <select value={financeProductId} onChange={(event) => setFinanceProductId(event.target.value)}>
+                <option value="all">Все товары</option>
+                {financeOrders.productOptions.map((product) => (
+                  <option value={product.id} key={product.id}>
+                    {product.title}
+                  </option>
+                ))}
+              </select>
+            </label>
           </div>
 
           <div className="admin-chart-grid">
             <section className="admin-chart-card">
               <div className="section-heading compact">
-                <span>Период</span>
-                <h2>Заказы по дням</h2>
+                <span>Линейная диаграмма</span>
+                <h2>Выручка и продажи товара по дням</h2>
               </div>
-              <div className="admin-bar-chart">
-                {financeOrders.byDate.map((item) => {
-                  const maxOrders = Math.max(1, ...financeOrders.byDate.map((day) => day.orders));
-                  return (
-                    <div key={item.date}>
-                      <span>{item.date.slice(5)}</span>
-                      <b style={{ height: `${Math.max(12, (item.orders / maxOrders) * 170)}px` }} />
-                      <strong>{item.orders}</strong>
-                    </div>
-                  );
-                })}
+              <div className="admin-line-chart">
+                <div className="admin-line-chart__legend">
+                  <span className="is-revenue">Выручка по дням</span>
+                  <span className="is-product">Продажи выбранного товара, шт</span>
+                </div>
+                <svg viewBox="0 0 720 260" role="img" aria-label="График финансов">
+                  <defs>
+                    <pattern id="financeGrid" width="48" height="32" patternUnits="userSpaceOnUse">
+                      <path d="M 48 0 L 0 0 0 32" fill="none" stroke="rgba(10,61,42,0.13)" strokeWidth="1" />
+                    </pattern>
+                  </defs>
+                  <rect width="720" height="260" fill="url(#financeGrid)" />
+                  <polyline points={financeOrders.revenuePolyline} fill="none" stroke="#d92f87" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
+                  <polyline points={financeOrders.productPolyline} fill="none" stroke="#2da8d8" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+                <div className="admin-line-chart__axis">
+                  {financeOrders.byDate
+                    .filter((_, index) => index === 0 || index === financeOrders.byDate.length - 1 || index % Math.max(1, Math.ceil(financeOrders.byDate.length / 5)) === 0)
+                    .map((item) => (
+                      <span key={item.date}>{item.date.slice(5)}</span>
+                    ))}
+                </div>
               </div>
             </section>
 
             <section className="admin-chart-card">
               <div className="section-heading compact">
-                <span>Товары</span>
-                <h2>Что продавалось</h2>
+                <span>По дням</span>
+                <h2>Сколько заработано</h2>
               </div>
-              <div className="admin-product-chart">
-                {financeOrders.topProducts.map((item) => {
-                  const maxQuantity = Math.max(1, ...financeOrders.topProducts.map((product) => product.quantity));
-                  return (
-                    <div key={item.id}>
-                      <span>{item.title}</span>
-                      <b style={{ width: `${Math.max(8, (item.quantity / maxQuantity) * 100)}%` }} />
-                      <strong>{item.quantity} шт · {formatPrice(item.total, "ru")}</strong>
-                    </div>
-                  );
-                })}
+              <div className="admin-daily-revenue-list">
+                {financeOrders.byDate.filter((item) => item.total > 0 || item.productQuantity > 0).slice(-10).reverse().map((item) => (
+                  <div key={item.date}>
+                    <span>{item.date}</span>
+                    <strong>{formatPrice(item.total, "ru")}</strong>
+                    <p>{item.orders} заказов · товар: {item.productQuantity} шт · доставка {formatPrice(item.delivery, "ru")} · сервис {formatPrice(item.service, "ru")}</p>
+                  </div>
+                ))}
+                {!financeOrders.byDate.some((item) => item.total > 0 || item.productQuantity > 0) && (
+                  <p className="support-empty">За выбранный период подтверждённых продаж нет.</p>
+                )}
               </div>
             </section>
           </div>
+
+          <section className="admin-chart-card">
+            <div className="section-heading compact">
+              <span>Товары</span>
+              <h2>Что продавалось</h2>
+            </div>
+            <div className="admin-product-chart">
+              {financeOrders.topProducts.map((item) => {
+                const maxQuantity = Math.max(1, ...financeOrders.topProducts.map((product) => product.quantity));
+                return (
+                  <div key={item.id}>
+                    <span>{item.title}</span>
+                    <b style={{ width: `${Math.max(8, (item.quantity / maxQuantity) * 100)}%` }} />
+                    <strong>{item.quantity} шт · {formatPrice(item.total, "ru")}</strong>
+                  </div>
+                );
+              })}
+              {!financeOrders.topProducts.length && (
+                <p className="support-empty">Подтверждённых продаж товаров пока нет.</p>
+              )}
+            </div>
+          </section>
         </section>
       )}
 
