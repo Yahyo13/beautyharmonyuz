@@ -13,10 +13,20 @@ function normalizeThread(document) {
   return {
     id: document.id || data.id || "",
     ...data,
+    topic: data.topic === "orders" ? "orders" : "questions",
     messages: Array.isArray(data.messages) ? data.messages : [],
     unreadByAdmin: Number(data.unreadByAdmin) || 0,
     unreadByCustomer: Number(data.unreadByCustomer) || 0,
   };
+}
+
+function normalizeTopic(topic = "questions") {
+  return topic === "orders" ? "orders" : "questions";
+}
+
+function getSupportThreadId(customerUser, topic = "questions") {
+  const cleanTopic = normalizeTopic(topic);
+  return cleanTopic === "orders" ? `${customerUser.uid}-orders` : customerUser.uid;
 }
 
 function buildMessage(text, author, authorName) {
@@ -30,24 +40,26 @@ function buildMessage(text, author, authorName) {
   };
 }
 
-export async function getCustomerSupportThread(customerUser, customerProfile) {
+export async function getCustomerSupportThread(customerUser, customerProfile, topic = "questions") {
   if (!customerUser?.uid) return null;
 
   const client = await getFirestoreClient();
   if (!client) return null;
 
   const { db, firestoreApi } = client;
-  const threadRef = firestoreApi.doc(db, "supportThreads", customerUser.uid);
+  const cleanTopic = normalizeTopic(topic);
+  const threadRef = firestoreApi.doc(db, "supportThreads", getSupportThreadId(customerUser, cleanTopic));
   const snapshot = await firestoreApi.getDoc(threadRef);
 
   if (snapshot.exists()) return normalizeThread({ id: snapshot.id, ...snapshot.data() });
 
   const createdAtIso = new Date().toISOString();
   const payload = {
-    id: customerUser.uid,
+    id: getSupportThreadId(customerUser, cleanTopic),
     customerUid: customerUser.uid,
     customerEmail: customerUser.email || "",
     customerName: normalizeText(`${customerProfile?.firstName || ""} ${customerProfile?.lastName || ""}`) || customerUser.email || "",
+    topic: cleanTopic,
     status: "open",
     messages: [],
     unreadByAdmin: 0,
@@ -62,7 +74,7 @@ export async function getCustomerSupportThread(customerUser, customerProfile) {
   return payload;
 }
 
-export async function sendCustomerSupportMessage({ customerUser, customerProfile, text }) {
+export async function sendCustomerSupportMessage({ customerUser, customerProfile, text, topic = "questions" }) {
   if (!customerUser?.uid) throw new Error("USER_MISSING");
   if (!normalizeText(text)) throw new Error("MESSAGE_EMPTY");
 
@@ -70,8 +82,9 @@ export async function sendCustomerSupportMessage({ customerUser, customerProfile
   if (!client) throw new Error("FIREBASE_NOT_CONFIGURED");
 
   const { db, firestoreApi } = client;
-  const threadRef = firestoreApi.doc(db, "supportThreads", customerUser.uid);
-  const thread = (await getCustomerSupportThread(customerUser, customerProfile)) || {};
+  const cleanTopic = normalizeTopic(topic);
+  const threadRef = firestoreApi.doc(db, "supportThreads", getSupportThreadId(customerUser, cleanTopic));
+  const thread = (await getCustomerSupportThread(customerUser, customerProfile, cleanTopic)) || {};
   const message = buildMessage(text, "customer", thread.customerName || customerUser.email || "Customer");
   const messages = [...(thread.messages || []), message].slice(-120);
 
@@ -81,6 +94,7 @@ export async function sendCustomerSupportMessage({ customerUser, customerProfile
       customerUid: customerUser.uid,
       customerEmail: customerUser.email || "",
       customerName: normalizeText(`${customerProfile?.firstName || ""} ${customerProfile?.lastName || ""}`) || customerUser.email || "",
+      topic: cleanTopic,
       status: "open",
       messages,
       unreadByAdmin: (Number(thread.unreadByAdmin) || 0) + 1,

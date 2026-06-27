@@ -3,19 +3,24 @@ import {
   ArrowLeft,
   ArrowRight,
   ArrowUpRight,
+  BarChart3,
   Building2,
   CheckCircle2,
+  CircleDollarSign,
   ClipboardList,
+  CreditCard,
   Edit3,
   Handshake,
   Heart,
   HeartHandshake,
+  HelpCircle,
   Instagram,
   Leaf,
   MessageCircle,
   Lock,
   LogOut,
   Mail,
+  MapPin,
   Menu,
   Minus,
   Moon,
@@ -26,6 +31,7 @@ import {
   RefreshCw,
   Search,
   Send,
+  Settings,
   ShieldCheck,
   ShoppingBag,
   ShoppingCart,
@@ -91,6 +97,17 @@ import {
   orderStatuses,
   updateCustomerOrderStatus,
 } from "./data/customerOrdersApi";
+import {
+  calculatePromoDiscount,
+  defaultCheckoutSettings,
+  fetchCheckoutSettings,
+  fetchPromoCodes,
+  markPromoCodeUsed,
+  saveCheckoutSettings,
+  savePromoCode,
+  togglePromoCodeStatus,
+  validatePromoCode,
+} from "./data/checkoutSettingsApi";
 import {
   fetchSupportThreads,
   getCustomerSupportThread,
@@ -2355,7 +2372,7 @@ function FavoritesPage() {
   );
 }
 
-function SupportChatPanel({ compact = false }) {
+function SupportChatPanel({ compact = false, topic = "questions" }) {
   const { language } = useLocale();
   const { customerUser, customerProfile } = useCustomer();
   const [thread, setThread] = useState(null);
@@ -2374,7 +2391,7 @@ function SupportChatPanel({ compact = false }) {
     }
 
     setIsLoading(true);
-    getCustomerSupportThread(customerUser, customerProfile)
+    getCustomerSupportThread(customerUser, customerProfile, topic)
       .then((nextThread) => {
         if (isMounted) setThread(nextThread);
       })
@@ -2388,7 +2405,7 @@ function SupportChatPanel({ compact = false }) {
     return () => {
       isMounted = false;
     };
-  }, [customerProfile, customerUser, language]);
+  }, [customerProfile, customerUser, language, topic]);
 
   async function handleSendMessage(event) {
     event.preventDefault();
@@ -2403,7 +2420,7 @@ function SupportChatPanel({ compact = false }) {
     setIsSending(true);
 
     try {
-      const savedThread = await sendCustomerSupportMessage({ customerUser, customerProfile, text: message });
+      const savedThread = await sendCustomerSupportMessage({ customerUser, customerProfile, text: message, topic });
       setThread(savedThread);
       setMessage("");
     } catch {
@@ -2414,11 +2431,13 @@ function SupportChatPanel({ compact = false }) {
   }
 
   return (
-    <section className={`support-panel${compact ? " is-compact" : ""}`}>
+    <section className={`support-panel${compact ? " is-compact" : ""}`} id="profile-support">
       <div className="support-panel__head">
         <span>
-          <MessageCircle size={18} aria-hidden="true" />
-          {language === "uz" ? "Qo'llab-quvvatlash" : "Поддержка"}
+          {topic === "orders" ? <ClipboardList size={18} aria-hidden="true" /> : <MessageCircle size={18} aria-hidden="true" />}
+          {topic === "orders"
+            ? language === "uz" ? "Buyurtma bo'yicha yordam" : "Помощь по заказу"
+            : language === "uz" ? "Savol berish" : "Задать вопрос"}
         </span>
         <strong>{isLoading ? (language === "uz" ? "Yuklanmoqda" : "Загрузка") : `${thread?.messages?.length || 0}`}</strong>
       </div>
@@ -2464,6 +2483,7 @@ function ProfilePage() {
   const [orderStatus, setOrderStatus] = useState("");
   const [cancellingOrderId, setCancellingOrderId] = useState("");
   const [isPanelOpen, setIsPanelOpen] = useState(false);
+  const [supportTopic, setSupportTopic] = useState("questions");
   const customerName = getCustomerDisplayName(customerProfile);
 
   useEffect(() => {
@@ -2520,6 +2540,13 @@ function ProfilePage() {
     }
   }
 
+  function openSupport(topic = "questions") {
+    setSupportTopic(topic === "orders" ? "orders" : "questions");
+    window.setTimeout(() => {
+      document.getElementById("profile-support")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 0);
+  }
+
   if (!customerUser) {
     return (
       <section className="profile-page profile-page--guest">
@@ -2550,6 +2577,9 @@ function ProfilePage() {
           <p>{customerUser.email}</p>
         </div>
         <div className="profile-actions">
+          <AppButton onClick={() => openSupport("questions")} icon={MessageCircle}>
+            {language === "uz" ? "Savol berish" : "Задать вопрос"}
+          </AppButton>
           <AppButton onClick={() => setIsPanelOpen(true)} icon={Edit3} variant="secondary">
             {language === "uz" ? "Profilni tahrirlash" : "Изменить профиль"}
           </AppButton>
@@ -2611,6 +2641,10 @@ function ProfilePage() {
                     </span>
                   </button>
                 )}
+                <button className="profile-order-help" type="button" onClick={() => openSupport("orders")}>
+                  <HelpCircle size={16} aria-hidden="true" />
+                  <span>{language === "uz" ? "Buyurtma bo'yicha yordam" : "Помощь по заказу"}</span>
+                </button>
               </article>
             ))}
           </div>
@@ -2626,7 +2660,17 @@ function ProfilePage() {
         )}
       </section>
 
-      <SupportChatPanel />
+      <div className="support-topic-tabs" aria-label={language === "uz" ? "Chat turi" : "Тип чата"}>
+        <button className={supportTopic === "questions" ? "is-active" : ""} type="button" onClick={() => setSupportTopic("questions")}>
+          <MessageCircle size={17} aria-hidden="true" />
+          {language === "uz" ? "Savollar" : "Вопросы"}
+        </button>
+        <button className={supportTopic === "orders" ? "is-active" : ""} type="button" onClick={() => setSupportTopic("orders")}>
+          <ClipboardList size={17} aria-hidden="true" />
+          {language === "uz" ? "Buyurtmalar" : "По заказам"}
+        </button>
+      </div>
+      <SupportChatPanel topic={supportTopic} />
       <CustomerPanel isOpen={isPanelOpen} onClose={() => setIsPanelOpen(false)} />
     </section>
   );
@@ -2820,54 +2864,348 @@ function CartPage() {
             <aside className="cart-summary-panel">
               <span>{t.cart.total}</span>
               <strong>{cartTotal ? formatPrice(cartTotal, language) : language === "uz" ? "Narx aniqlanadi" : "Цена уточняется"}</strong>
-              <p>{language === "uz" ? "Ma'lumotlarni kiriting, buyurtma admin paneldagi alohida bo'limga tushadi." : "Заполните данные, заказ попадёт в отдельную вкладку админки."}</p>
+              <p>{language === "uz" ? "Keyingi sahifada manzil, promo-kod va yetkazib berish narxi ko'rsatiladi." : "На следующей странице будут адрес, промокод, доставка и итоговая стоимость."}</p>
+              <AppButton href="#/checkout" icon={ClipboardList}>
+                {language === "uz" ? "Buyurtma rasmiylashtirish" : "Оформить заказ"}
+              </AppButton>
+            </aside>
+          </>
+        ) : (
+          <div className="catalog-empty reveal is-visible">
+            <ShoppingCart size={34} aria-hidden="true" />
+            <h2>{t.cart.emptyTitle}</h2>
+            <p>{t.cart.emptyText}</p>
+            <AppButton href="#/catalog" icon={ShoppingBag}>
+              {t.favorites.openCatalog}
+            </AppButton>
+          </div>
+        )}
+      </section>
+    </>
+  );
+}
 
-              <form className="checkout-form" onSubmit={handleCheckoutSubmit}>
+function CheckoutPage() {
+  const { language, t } = useLocale();
+  const { customerUser, customerProfile } = useCustomer();
+  const { cartItems, clearCart } = useCart();
+  const [catalogProducts, setCatalogProducts] = useState([]);
+  const [settings, setSettings] = useState(defaultCheckoutSettings);
+  const [form, setForm] = useState({
+    name: "",
+    phoneNumber: "+998 ",
+    city: "",
+    address: "",
+    latitude: "",
+    longitude: "",
+    comment: "",
+  });
+  const [promoInput, setPromoInput] = useState("");
+  const [appliedPromo, setAppliedPromo] = useState(null);
+  const [status, setStatus] = useState("");
+  const [error, setError] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isApplyingPromo, setIsApplyingPromo] = useState(false);
+  const [isLocating, setIsLocating] = useState(false);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    Promise.all([
+      loadBestCatalogProducts(),
+      fetchCheckoutSettings().catch(() => defaultCheckoutSettings),
+    ])
+      .then(([catalogResult, nextSettings]) => {
+        if (!isMounted) return;
+        setCatalogProducts(catalogResult.products || []);
+        setSettings(nextSettings || defaultCheckoutSettings);
+      })
+      .finally(() => {
+        if (isMounted) setIsLoading(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    setForm((current) => ({
+      ...current,
+      name: current.name || getCustomerDisplayName(customerProfile),
+      phoneNumber: current.phoneNumber && current.phoneNumber !== "+998 " ? current.phoneNumber : customerProfile?.phoneNumber || "+998 ",
+    }));
+  }, [customerProfile]);
+
+  const checkoutProducts = useMemo(() => {
+    const productById = new Map(catalogProducts.map((product) => [product.id, product]));
+    return cartItems
+      .map((item) => ({ ...item, product: productById.get(item.productId) }))
+      .filter((item) => item.product);
+  }, [cartItems, catalogProducts]);
+
+  const subtotal = useMemo(() => {
+    return checkoutProducts.reduce((sum, item) => sum + (Number(item.product.price) || 0) * item.quantity, 0);
+  }, [checkoutProducts]);
+
+  const promoDiscount = appliedPromo ? calculatePromoDiscount(appliedPromo.promo, subtotal) : 0;
+  const deliveryPrice = Number(settings.deliveryPrice) || 0;
+  const serviceFee = Number(settings.serviceFee) || 0;
+  const checkoutTotal = Math.max(0, subtotal + deliveryPrice + serviceFee - promoDiscount);
+
+  function handleFormChange(event) {
+    const { name, value } = event.target;
+    setStatus("");
+    setError("");
+    setForm((current) => ({
+      ...current,
+      [name]: name === "phoneNumber" ? formatUzbekPhoneNumber(value) : value,
+    }));
+  }
+
+  async function handleApplyPromo(event) {
+    event.preventDefault();
+    setStatus("");
+    setError("");
+    setAppliedPromo(null);
+
+    if (!promoInput.trim()) return;
+    setIsApplyingPromo(true);
+
+    try {
+      const result = await validatePromoCode(promoInput, subtotal);
+      setAppliedPromo(result);
+      setStatus(language === "uz" ? "Promo-kod qo'llandi." : "Промокод применён.");
+    } catch {
+      setError(language === "uz" ? "Promo-kod ishlamayapti yoki muddati tugagan." : "Промокод не найден, отключён или срок закончился.");
+    } finally {
+      setIsApplyingPromo(false);
+    }
+  }
+
+  function openMapSearch() {
+    const query = [form.city, form.address].filter(Boolean).join(", ") || "Tashkent";
+    window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`, "_blank", "noreferrer");
+  }
+
+  function useCurrentLocation() {
+    if (!navigator.geolocation) {
+      setError(language === "uz" ? "Brauzer geolokatsiyani qo'llamaydi." : "Браузер не поддерживает геолокацию.");
+      return;
+    }
+
+    setIsLocating(true);
+    setError("");
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setForm((current) => ({
+          ...current,
+          latitude: position.coords.latitude.toFixed(6),
+          longitude: position.coords.longitude.toFixed(6),
+        }));
+        setIsLocating(false);
+        setStatus(language === "uz" ? "Geolokatsiya qo'shildi." : "Геолокация добавлена.");
+      },
+      () => {
+        setIsLocating(false);
+        setError(language === "uz" ? "Geolokatsiyani olish imkoni bo'lmadi." : "Не удалось получить геолокацию.");
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  }
+
+  async function handleCheckoutSubmit(event) {
+    event.preventDefault();
+    setStatus("");
+    setError("");
+
+    if (!checkoutProducts.length) {
+      setError(language === "uz" ? "Savat bo'sh." : "Корзина пустая.");
+      return;
+    }
+
+    if (!customerUser) {
+      requestCustomerSignIn(language === "uz" ? "Buyurtma berish uchun profilga kiring." : "Сначала войдите в профиль, чтобы оформить заказ.");
+      setError(language === "uz" ? "Buyurtma uchun profilga kiring." : "Для оформления заказа войдите в профиль.");
+      return;
+    }
+
+    if (!form.name.trim()) {
+      setError(language === "uz" ? "Ismni kiriting." : "Введите имя.");
+      return;
+    }
+
+    if (!isValidUzbekPhoneNumber(form.phoneNumber)) {
+      setError(language === "uz" ? "+998 bilan to'liq telefon raqamini kiriting." : "Введите полный номер телефона с кодом +998.");
+      return;
+    }
+
+    if (!form.city.trim() || !form.address.trim()) {
+      setError(language === "uz" ? "Shahar va manzilni kiriting." : "Введите город и адрес.");
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      const promo = appliedPromo
+        ? { ...appliedPromo.promo, discount: promoDiscount }
+        : null;
+      const order = await createCustomerOrder({
+        customerUser,
+        customerProfile,
+        form,
+        items: checkoutProducts,
+        total: subtotal,
+        checkout: settings,
+        promo,
+        language,
+      });
+      if (promo?.id) await markPromoCodeUsed(promo.id).catch(() => null);
+      clearCart();
+      setStatus(language === "uz" ? `Buyurtma qabul qilindi: #${order.id.slice(0, 8)}.` : `Заказ принят: #${order.id.slice(0, 8)}.`);
+      window.setTimeout(() => {
+        window.location.hash = "#/profile";
+      }, 900);
+    } catch (checkoutError) {
+      console.warn("[Checkout] order create failed:", checkoutError);
+      setError(language === "uz" ? "Buyurtmani saqlab bo'lmadi." : "Не удалось сохранить заказ.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  return (
+    <>
+      <header className="favorites-hero checkout-hero">
+        <div className="favorites-hero__copy reveal is-visible">
+          <span className="eyebrow">
+            <ClipboardList size={17} aria-hidden="true" />
+            {language === "uz" ? "Buyurtma" : "Оформление заказа"}
+          </span>
+          <h1>{language === "uz" ? "Yetkazish va to'lov" : "Доставка и итог"}</h1>
+          <p>{language === "uz" ? "Manzil, promo-kod va buyurtma summasini tekshiring." : "Проверьте адрес, промокод и итоговую сумму заказа."}</p>
+        </div>
+      </header>
+
+      <section className="checkout-page">
+        {isLoading ? (
+          <div className="catalog-empty reveal is-visible">
+            <RefreshCw size={34} aria-hidden="true" />
+            <h2>{t.favorites.loading}</h2>
+          </div>
+        ) : checkoutProducts.length > 0 ? (
+          <>
+            <form className="checkout-card" onSubmit={handleCheckoutSubmit}>
+              <div className="section-heading compact">
+                <span>{language === "uz" ? "Ma'lumotlar" : "Данные покупателя"}</span>
+                <h2>{language === "uz" ? "Buyurtmani rasmiylashtirish" : "Оформить заказ"}</h2>
+              </div>
+
+              <div className="customer-form__grid">
                 <label>
                   {language === "uz" ? "Ism" : "Имя"}
-                  <input name="name" value={checkoutForm.name} onChange={handleCheckoutChange} placeholder={language === "uz" ? "Ismingiz" : "Ваше имя"} required />
+                  <input name="name" value={form.name} onChange={handleFormChange} placeholder={language === "uz" ? "Ismingiz" : "Ваше имя"} required />
                 </label>
-
                 <label>
                   {language === "uz" ? "Telefon" : "Телефон"}
-                  <input
-                    name="phoneNumber"
-                    value={checkoutForm.phoneNumber}
-                    onChange={handleCheckoutChange}
-                    placeholder="+998 90 123 45 67"
-                    inputMode="tel"
-                    required
-                  />
+                  <input name="phoneNumber" value={form.phoneNumber} onChange={handleFormChange} placeholder="+998 90 123 45 67" inputMode="tel" required />
                 </label>
+              </div>
 
+              <div className="customer-form__grid">
                 <label>
                   {language === "uz" ? "Shahar" : "Город"}
-                  <input name="city" value={checkoutForm.city} onChange={handleCheckoutChange} placeholder={language === "uz" ? "Toshkent" : "Ташкент"} required />
+                  <input name="city" value={form.city} onChange={handleFormChange} placeholder={language === "uz" ? "Toshkent" : "Ташкент"} required />
                 </label>
-
                 <label>
                   {language === "uz" ? "Manzil" : "Адрес"}
-                  <input name="address" value={checkoutForm.address} onChange={handleCheckoutChange} placeholder={language === "uz" ? "Ko'cha, uy" : "Улица, дом"} required />
+                  <input name="address" value={form.address} onChange={handleFormChange} placeholder={language === "uz" ? "Ko'cha, uy" : "Улица, дом"} required />
                 </label>
+              </div>
 
+              <div className="checkout-map-actions">
+                <button type="button" onClick={openMapSearch}>
+                  <MapPin size={17} aria-hidden="true" />
+                  {language === "uz" ? "Xaritada ochish" : "Открыть карту"}
+                </button>
+                <button type="button" onClick={useCurrentLocation} disabled={isLocating}>
+                  <MapPin size={17} aria-hidden="true" />
+                  {isLocating ? (language === "uz" ? "Aniqlanmoqda..." : "Определяем...") : language === "uz" ? "Mening joylashuvim" : "Моя геолокация"}
+                </button>
+              </div>
+
+              {(form.latitude || form.longitude) && (
+                <p className="checkout-location-note">
+                  {language === "uz" ? "Koordinatalar" : "Координаты"}: {form.latitude}, {form.longitude}
+                </p>
+              )}
+
+              <label>
+                {language === "uz" ? "Izoh" : "Комментарий"}
+                <textarea name="comment" value={form.comment} onChange={handleFormChange} rows={3} placeholder={language === "uz" ? "Yetkazish bo'yicha izoh" : "Комментарий к доставке"} />
+              </label>
+
+              <AppButton type="submit" icon={ClipboardList} disabled={isSubmitting}>
+                {isSubmitting ? (language === "uz" ? "Yuborilmoqda..." : "Отправляем...") : language === "uz" ? "Buyurtma berish" : "Подтвердить заказ"}
+              </AppButton>
+
+              {status && <p className="form-status">{status}</p>}
+              {error && <p className="form-status is-error">{error}</p>}
+            </form>
+
+            <aside className="checkout-summary">
+              <form className="promo-form" onSubmit={handleApplyPromo}>
                 <label>
-                  {language === "uz" ? "Izoh" : "Комментарий"}
-                  <textarea
-                    name="comment"
-                    value={checkoutForm.comment}
-                    onChange={handleCheckoutChange}
-                    placeholder={language === "uz" ? "Yetkazish bo'yicha izoh" : "Комментарий к доставке"}
-                    rows={3}
-                  />
+                  {language === "uz" ? "Promo-kod" : "Промокод"}
+                  <span>
+                    <input value={promoInput} onChange={(event) => setPromoInput(event.target.value.toUpperCase())} placeholder="BEAUTY10" />
+                    <button type="submit" disabled={isApplyingPromo || !promoInput.trim()}>
+                      {isApplyingPromo ? "..." : language === "uz" ? "Qo'llash" : "Применить"}
+                    </button>
+                  </span>
                 </label>
-
-                <AppButton type="submit" icon={ClipboardList} disabled={isSubmittingOrder}>
-                  {isSubmittingOrder ? (language === "uz" ? "Yuborilmoqda..." : "Отправляем...") : language === "uz" ? "Buyurtma berish" : "Оформить заказ"}
-                </AppButton>
-
-                {checkoutStatus && <p className="form-status">{checkoutStatus}</p>}
-                {checkoutError && <p className="form-status is-error">{checkoutError}</p>}
               </form>
+
+              <div className="checkout-lines">
+                <div>
+                  <span>{language === "uz" ? "Tovarlar" : "Товары"}</span>
+                  <strong>{formatPrice(subtotal, language)}</strong>
+                </div>
+                <div>
+                  <span>{language === "uz" ? "Yetkazish" : "Доставка"}</span>
+                  <strong>{deliveryPrice ? formatPrice(deliveryPrice, language) : language === "uz" ? "Bepul" : "Бесплатно"}</strong>
+                </div>
+                {serviceFee > 0 && (
+                  <div>
+                    <span>{language === "uz" ? "Servis xizmati" : "Работа сервиса"}</span>
+                    <strong>{formatPrice(serviceFee, language)}</strong>
+                  </div>
+                )}
+                {promoDiscount > 0 && (
+                  <div className="is-discount">
+                    <span>{language === "uz" ? "Chegirma" : "Скидка"} {appliedPromo?.promo?.code}</span>
+                    <strong>-{formatPrice(promoDiscount, language)}</strong>
+                  </div>
+                )}
+                <div className="is-total">
+                  <span>{language === "uz" ? "Jami" : "Общая стоимость заказа"}</span>
+                  <strong>{formatPrice(checkoutTotal, language)}</strong>
+                </div>
+              </div>
+
+              <div className="checkout-products">
+                {checkoutProducts.map(({ product, quantity }) => (
+                  <article key={product.id}>
+                    <img src={product.image} alt={getProductTitle(product, language)} />
+                    <div>
+                      <b>{quantity} x {getProductTitle(product, language)}</b>
+                      <span>{formatPrice((Number(product.price) || 0) * quantity, language)}</span>
+                    </div>
+                  </article>
+                ))}
+              </div>
             </aside>
           </>
         ) : (
@@ -3723,6 +4061,37 @@ function isLikelyPartnerRequest(request) {
   );
 }
 
+function createEmptyPromoForm() {
+  const today = new Date().toISOString().slice(0, 10);
+  return {
+    id: "",
+    code: "",
+    discountType: "amount",
+    discountValue: "",
+    maxActivations: "",
+    startsAt: today,
+    endsAt: "",
+    isActive: true,
+    usedCount: 0,
+  };
+}
+
+function promoToAdminForm(promo = {}) {
+  return {
+    ...createEmptyPromoForm(),
+    id: promo.id || "",
+    code: promo.code || "",
+    discountType: promo.discountType === "percent" ? "percent" : "amount",
+    discountValue: promo.discountValue || "",
+    maxActivations: promo.maxActivations || "",
+    startsAt: promo.startsAt || "",
+    endsAt: promo.endsAt || "",
+    isActive: promo.isActive !== false,
+    usedCount: promo.usedCount || 0,
+    createdAtIso: promo.createdAtIso || "",
+  };
+}
+
 function AdminDashboard() {
   const [session, setSession] = useState(null);
   const [isCheckingSession, setIsCheckingSession] = useState(true);
@@ -3734,9 +4103,12 @@ function AdminDashboard() {
   const [orders, setOrders] = useState([]);
   const [supportThreads, setSupportThreads] = useState([]);
   const [adminProducts, setAdminProducts] = useState([]);
+  const [checkoutSettings, setCheckoutSettings] = useState(defaultCheckoutSettings);
+  const [promoCodes, setPromoCodes] = useState([]);
   const [query, setQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState("all");
   const [orderStatusFilter, setOrderStatusFilter] = useState("all");
+  const [supportMode, setSupportMode] = useState("questions");
   const [loadStatus, setLoadStatus] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [updatingRequestId, setUpdatingRequestId] = useState("");
@@ -3749,6 +4121,11 @@ function AdminDashboard() {
   const [supportReply, setSupportReply] = useState("");
   const [isSendingSupportReply, setIsSendingSupportReply] = useState(false);
   const [productForm, setProductForm] = useState(createEmptyAdminProductForm);
+  const [checkoutSettingsStatus, setCheckoutSettingsStatus] = useState("");
+  const [promoForm, setPromoForm] = useState(createEmptyPromoForm);
+  const [editingPromoId, setEditingPromoId] = useState("");
+  const [promoStatus, setPromoStatus] = useState("");
+  const [savingPromo, setSavingPromo] = useState(false);
   const [editingProductId, setEditingProductId] = useState("");
   const [productStatus, setProductStatus] = useState("");
 
@@ -3773,11 +4150,13 @@ function AdminDashboard() {
     setLoadStatus("");
 
     try {
-      const [nextRequests, nextOrders, nextSupportThreads, nextProducts] = await Promise.all([
+      const [nextRequests, nextOrders, nextSupportThreads, nextProducts, nextCheckoutSettings, nextPromoCodes] = await Promise.all([
         fetchPartnerRequests().catch(() => []),
         fetchCustomerOrders().catch(() => []),
         fetchSupportThreads().catch(() => []),
         fetchFirebaseCatalogProducts().catch(() => []),
+        fetchCheckoutSettings().catch(() => defaultCheckoutSettings),
+        fetchPromoCodes().catch(() => []),
       ]);
 
       setRequests(nextRequests.filter(isLikelyPartnerRequest));
@@ -3785,6 +4164,8 @@ function AdminDashboard() {
       setSupportThreads(nextSupportThreads);
       setSelectedThreadId((current) => current || nextSupportThreads[0]?.id || "");
       setAdminProducts(nextProducts.map(normalizeCatalogProduct).filter(isVisibleCatalogProduct));
+      setCheckoutSettings(nextCheckoutSettings || defaultCheckoutSettings);
+      setPromoCodes(nextPromoCodes);
     } catch (error) {
       console.warn("[Admin] dashboard load failed:", error);
       setLoadStatus("Не удалось загрузить данные. Проверьте Firebase/API и обновите страницу.");
@@ -3825,6 +4206,7 @@ function AdminDashboard() {
     setOrders([]);
     setSupportThreads([]);
     setAdminProducts([]);
+    setPromoCodes([]);
   };
 
   const filteredRequests = useMemo(() => {
@@ -3893,9 +4275,13 @@ function AdminDashboard() {
   }, [requests]);
 
   const ordersTotal = useMemo(() => orders.reduce((sum, order) => sum + (Number(order.total) || 0), 0), [orders]);
+  const filteredSupportThreads = useMemo(
+    () => supportThreads.filter((thread) => (thread.topic === "orders" ? "orders" : "questions") === supportMode),
+    [supportMode, supportThreads]
+  );
   const selectedThread = useMemo(
-    () => supportThreads.find((thread) => thread.id === selectedThreadId) || supportThreads[0] || null,
-    [selectedThreadId, supportThreads]
+    () => filteredSupportThreads.find((thread) => thread.id === selectedThreadId) || filteredSupportThreads[0] || null,
+    [filteredSupportThreads, selectedThreadId]
   );
 
   const deleteRequest = async (request) => {
@@ -4095,6 +4481,129 @@ function AdminDashboard() {
     }
   };
 
+  const handleCheckoutSettingsChange = (event) => {
+    const { name, value } = event.target;
+    setCheckoutSettingsStatus("");
+    setCheckoutSettings((current) => ({ ...current, [name]: value }));
+  };
+
+  const submitCheckoutSettings = async (event) => {
+    event.preventDefault();
+    setCheckoutSettingsStatus("");
+
+    try {
+      const saved = await saveCheckoutSettings(checkoutSettings);
+      setCheckoutSettings(saved);
+      setCheckoutSettingsStatus("Настройки оформления сохранены.");
+    } catch (error) {
+      console.warn("[Admin] checkout settings save failed:", error);
+      setCheckoutSettingsStatus("Не удалось сохранить настройки.");
+    }
+  };
+
+  const handlePromoFormChange = (event) => {
+    const { name, value, type, checked } = event.target;
+    setPromoStatus("");
+    setPromoForm((current) => ({
+      ...current,
+      [name]: type === "checkbox" ? checked : name === "code" ? value.toUpperCase() : value,
+    }));
+  };
+
+  const editPromoCode = (promo) => {
+    setEditingPromoId(promo.id);
+    setPromoForm(promoToAdminForm(promo));
+    setPromoStatus("");
+    setActiveTab("promocodes");
+  };
+
+  const submitPromoCode = async (event) => {
+    event.preventDefault();
+    setSavingPromo(true);
+    setPromoStatus("");
+
+    try {
+      const saved = await savePromoCode({ ...promoForm, id: editingPromoId || promoForm.id });
+      setPromoCodes((current) => {
+        const exists = current.some((item) => item.id === saved.id);
+        return exists ? current.map((item) => (item.id === saved.id ? saved : item)) : [saved, ...current];
+      });
+      setEditingPromoId(saved.id);
+      setPromoForm(promoToAdminForm(saved));
+      setPromoStatus("Промокод сохранён.");
+    } catch (error) {
+      console.warn("[Admin] promo save failed:", error);
+      setPromoStatus("Не удалось сохранить промокод.");
+    } finally {
+      setSavingPromo(false);
+    }
+  };
+
+  const switchPromoCodeStatus = async (promo) => {
+    if (!promo?.id) return;
+
+    try {
+      const saved = await togglePromoCodeStatus(promo.id, promo.isActive === false);
+      setPromoCodes((current) => current.map((item) => (item.id === promo.id ? { ...item, ...saved } : item)));
+    } catch (error) {
+      console.warn("[Admin] promo status update failed:", error);
+      setPromoStatus("Не удалось изменить статус промокода.");
+    }
+  };
+
+  const adminNavItems = [
+    { value: "products", label: "Товары", icon: PackagePlus },
+    { value: "requests", label: "B2B заявки", icon: Handshake },
+    { value: "orders", label: "Заказы", icon: ClipboardList },
+    { value: "support", label: "Чаты", icon: MessageCircle },
+    { value: "checkout", label: "Оформление заказов", icon: CreditCard },
+    { value: "promocodes", label: "Промокоды", icon: Tags },
+    { value: "finance", label: "Финансы", icon: CircleDollarSign },
+    { value: "profile", label: "Профиль", icon: UserCheck },
+  ];
+
+  const financeOrders = useMemo(() => {
+    const completed = orders.filter((order) => !["cancelled"].includes(order.status));
+    const cancelled = orders.filter((order) => order.status === "cancelled");
+    const revenue = completed.reduce((sum, order) => sum + (Number(order.subtotal ?? order.total) || 0), 0);
+    const deliveryRevenue = completed.reduce((sum, order) => sum + (Number(order.deliveryPrice) || 0), 0);
+    const serviceRevenue = completed.reduce((sum, order) => sum + (Number(order.serviceFee) || 0), 0);
+    const byDate = new Map();
+    const byProduct = new Map();
+
+    orders.forEach((order) => {
+      const date = String(order.createdAtIso || "").slice(0, 10) || "Без даты";
+      const currentDate = byDate.get(date) || { date, orders: 0, cancelled: 0, total: 0 };
+      currentDate.orders += 1;
+      if (order.status === "cancelled") currentDate.cancelled += 1;
+      currentDate.total += Number(order.total) || 0;
+      byDate.set(date, currentDate);
+
+      (order.items || []).forEach((item) => {
+        const key = item.productId || item.titleRu || item.titleUz;
+        const currentProduct = byProduct.get(key) || {
+          id: key,
+          title: item.titleRu || item.titleUz || key,
+          quantity: 0,
+          total: 0,
+        };
+        currentProduct.quantity += Number(item.quantity) || 0;
+        currentProduct.total += Number(item.subtotal) || 0;
+        byProduct.set(key, currentProduct);
+      });
+    });
+
+    return {
+      completed,
+      cancelled,
+      revenue,
+      deliveryRevenue,
+      serviceRevenue,
+      byDate: [...byDate.values()].sort((left, right) => left.date.localeCompare(right.date)).slice(-14),
+      topProducts: [...byProduct.values()].sort((left, right) => right.quantity - left.quantity).slice(0, 8),
+    };
+  }, [orders]);
+
   if (isCheckingSession) {
     return (
       <section className="admin-login-page">
@@ -4137,41 +4646,62 @@ function AdminDashboard() {
   }
 
   return (
-    <section className="admin-page">
+    <section className="admin-page admin-shell">
+      <aside className="admin-sidebar">
+        <div className="admin-sidebar__brand">
+          <img src={logoUrl} alt="Beauty Harmony" />
+          <button type="button" aria-label="Свернуть меню">
+            <SlidersHorizontal size={18} aria-hidden="true" />
+          </button>
+        </div>
+
+        <div className="admin-sidebar__profile">
+          <span>BH</span>
+          <strong>{session.name}</strong>
+        </div>
+
+        <nav className="admin-sidebar__nav" aria-label="Разделы админ-панели">
+          {adminNavItems.map((item) => {
+            const Icon = item.icon;
+            return (
+              <button
+                className={activeTab === item.value ? "is-active" : ""}
+                type="button"
+                onClick={() => setActiveTab(item.value)}
+                key={item.value}
+              >
+                <Icon size={19} aria-hidden="true" />
+                <span>{item.label}</span>
+              </button>
+            );
+          })}
+        </nav>
+
+        <button className="admin-sidebar__logout" type="button" onClick={handleLogout}>
+          <LogOut size={18} aria-hidden="true" />
+          <span>Выйти</span>
+        </button>
+      </aside>
+
+      <main className="admin-main">
       <header className="admin-header">
         <div>
           <span className="eyebrow">
             <ShieldCheck size={17} aria-hidden="true" />
             Admin
           </span>
-          <h1>{activeTab === "orders" ? "Заказы" : activeTab === "products" ? "Товары" : activeTab === "support" ? "Поддержка" : "B2B заявки"}</h1>
-          <p>B2B заявки, заказы из корзины и каталог товаров теперь разделены по вкладкам.</p>
+          <h1>
+            {adminNavItems.find((item) => item.value === activeTab)?.label || "Админ-панель"}
+          </h1>
+          <p>Управление каталогом, заказами, заявками, чатами, промокодами и финансами Beauty Harmony.</p>
         </div>
 
         <div className="admin-actions">
           <AppButton variant="secondary" icon={RefreshCw} onClick={loadDashboardData} disabled={isLoading}>
             {isLoading ? "Загрузка..." : "Обновить"}
           </AppButton>
-          <AppButton variant="ghost" icon={LogOut} onClick={handleLogout}>
-            Выйти
-          </AppButton>
         </div>
       </header>
-
-      <div className="admin-tabs" role="tablist" aria-label="Разделы админки">
-        <button className={activeTab === "orders" ? "is-active" : ""} type="button" onClick={() => setActiveTab("orders")}>
-          <ClipboardList size={17} aria-hidden="true" /> Заказы
-        </button>
-        <button className={activeTab === "requests" ? "is-active" : ""} type="button" onClick={() => setActiveTab("requests")}>
-          <Handshake size={17} aria-hidden="true" /> B2B
-        </button>
-        <button className={activeTab === "products" ? "is-active" : ""} type="button" onClick={() => setActiveTab("products")}>
-          <PackagePlus size={17} aria-hidden="true" /> Товары
-        </button>
-        <button className={activeTab === "support" ? "is-active" : ""} type="button" onClick={() => setActiveTab("support")}>
-          <MessageCircle size={17} aria-hidden="true" /> Поддержка
-        </button>
-      </div>
 
       <div className="admin-stats">
         <div>
@@ -4192,7 +4722,7 @@ function AdminDashboard() {
         </div>
       </div>
 
-      {activeTab !== "support" && <div className="admin-toolbar admin-toolbar--wide">
+      {["orders", "requests", "products"].includes(activeTab) && <div className="admin-toolbar admin-toolbar--wide">
         <label>
           Поиск
           <span>
@@ -4245,10 +4775,21 @@ function AdminDashboard() {
           <h2>Чаты покупателей</h2>
         </div>
 
-        {supportThreads.length > 0 ? (
+        <div className="support-topic-tabs is-admin">
+          <button className={supportMode === "questions" ? "is-active" : ""} type="button" onClick={() => { setSupportMode("questions"); setSelectedThreadId(""); }}>
+            <MessageCircle size={17} aria-hidden="true" />
+            Вопросы от клиентов
+          </button>
+          <button className={supportMode === "orders" ? "is-active" : ""} type="button" onClick={() => { setSupportMode("orders"); setSelectedThreadId(""); }}>
+            <ClipboardList size={17} aria-hidden="true" />
+            Помощь в заказах
+          </button>
+        </div>
+
+        {filteredSupportThreads.length > 0 ? (
           <div className="admin-support-layout">
             <div className="admin-support-list">
-              {supportThreads.map((thread) => (
+              {filteredSupportThreads.map((thread) => (
                 <button
                   className={selectedThread?.id === thread.id ? "is-active" : ""}
                   type="button"
@@ -4589,6 +5130,202 @@ function AdminDashboard() {
           </div>
         </div>
       )}
+      {activeTab === "checkout" && (
+        <section className="admin-settings-panel">
+          <div className="section-heading compact">
+            <span>Оформление заказов</span>
+            <h2>Доставка и работа сервиса</h2>
+            <p>Если работа сервиса равна 0 сум, у клиента эта строка не отображается.</p>
+          </div>
+
+          <form className="admin-product-form admin-settings-form" onSubmit={submitCheckoutSettings}>
+            <div className="admin-product-form__grid">
+              <label>
+                Цена доставки, сум
+                <input name="deliveryPrice" value={checkoutSettings.deliveryPrice} onChange={handleCheckoutSettingsChange} inputMode="numeric" placeholder="0" />
+              </label>
+              <label>
+                Работа сервиса, сум
+                <input name="serviceFee" value={checkoutSettings.serviceFee} onChange={handleCheckoutSettingsChange} inputMode="numeric" placeholder="0" />
+              </label>
+            </div>
+            <AppButton type="submit" icon={Settings}>
+              Сохранить настройки
+            </AppButton>
+            {checkoutSettingsStatus && <p className={`form-status${checkoutSettingsStatus.includes("Не удалось") ? " is-error" : ""}`}>{checkoutSettingsStatus}</p>}
+          </form>
+        </section>
+      )}
+
+      {activeTab === "promocodes" && (
+        <section className="admin-promocode-layout">
+          <form className="admin-product-form" onSubmit={submitPromoCode}>
+            <div className="admin-product-form__head">
+              <span>{editingPromoId ? "Редактирование промокода" : "Новый промокод"}</span>
+              <strong>{editingPromoId || "Введите код"}</strong>
+            </div>
+
+            <label>
+              Код
+              <input name="code" value={promoForm.code} onChange={handlePromoFormChange} placeholder="BEAUTY10" required />
+            </label>
+
+            <div className="admin-product-form__grid">
+              <label>
+                Тип скидки
+                <select name="discountType" value={promoForm.discountType} onChange={handlePromoFormChange}>
+                  <option value="amount">Сумма, сум</option>
+                  <option value="percent">Процент</option>
+                </select>
+              </label>
+              <label>
+                Значение скидки
+                <input name="discountValue" value={promoForm.discountValue} onChange={handlePromoFormChange} inputMode="numeric" required />
+              </label>
+            </div>
+
+            <div className="admin-product-form__grid">
+              <label>
+                Активаций
+                <input name="maxActivations" value={promoForm.maxActivations} onChange={handlePromoFormChange} inputMode="numeric" placeholder="0 = без лимита" />
+              </label>
+              <label className="admin-product-checkbox">
+                <input name="isActive" type="checkbox" checked={promoForm.isActive} onChange={handlePromoFormChange} />
+                Промокод активен
+              </label>
+            </div>
+
+            <div className="admin-product-form__grid">
+              <label>
+                Дата начала
+                <input name="startsAt" type="date" value={promoForm.startsAt} onChange={handlePromoFormChange} />
+              </label>
+              <label>
+                Дата окончания
+                <input name="endsAt" type="date" value={promoForm.endsAt} onChange={handlePromoFormChange} />
+              </label>
+            </div>
+
+            <div className="admin-product-form__actions">
+              <AppButton type="submit" icon={Tags} disabled={savingPromo}>
+                {savingPromo ? "Сохраняем..." : "Сохранить промокод"}
+              </AppButton>
+              <button className="admin-delete-button" type="button" onClick={() => { setEditingPromoId(""); setPromoForm(createEmptyPromoForm()); }}>
+                <Plus size={17} aria-hidden="true" />
+                <span>Новый</span>
+              </button>
+            </div>
+            {promoStatus && <p className={`form-status${promoStatus.includes("Не удалось") ? " is-error" : ""}`}>{promoStatus}</p>}
+          </form>
+
+          <div className="admin-products-list">
+            {promoCodes.map((promo) => (
+              <article className="admin-promo-row" key={promo.id}>
+                <div>
+                  <span>{promo.isActive ? "Активен" : "Отключён"}</span>
+                  <h2>{promo.code}</h2>
+                  <p>
+                    {promo.discountType === "percent" ? `${promo.discountValue}%` : formatPrice(promo.discountValue, "ru")}
+                    {" · "}
+                    {promo.maxActivations ? `${promo.usedCount}/${promo.maxActivations} активаций` : `${promo.usedCount} активаций`}
+                    {promo.endsAt ? ` · до ${promo.endsAt}` : ""}
+                  </p>
+                </div>
+                <button type="button" onClick={() => editPromoCode(promo)}>
+                  <Edit3 size={16} aria-hidden="true" />
+                  Изменить
+                </button>
+                <button type="button" onClick={() => switchPromoCodeStatus(promo)}>
+                  {promo.isActive ? "Отключить" : "Включить"}
+                </button>
+              </article>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {activeTab === "finance" && (
+        <section className="admin-finance">
+          <div className="admin-finance-grid">
+            <article>
+              <span>Заказы</span>
+              <strong>{orders.length}</strong>
+              <p>Отменено: {financeOrders.cancelled.length}</p>
+            </article>
+            <article>
+              <span>Товары</span>
+              <strong>{formatPrice(financeOrders.revenue, "ru")}</strong>
+              <p>Сумма товаров без отменённых заказов</p>
+            </article>
+            <article>
+              <span>Доставка</span>
+              <strong>{formatPrice(financeOrders.deliveryRevenue, "ru")}</strong>
+              <p>За всё время</p>
+            </article>
+            <article>
+              <span>Работа сервиса</span>
+              <strong>{formatPrice(financeOrders.serviceRevenue, "ru")}</strong>
+              <p>За всё время</p>
+            </article>
+          </div>
+
+          <div className="admin-chart-grid">
+            <section className="admin-chart-card">
+              <div className="section-heading compact">
+                <span>Период</span>
+                <h2>Заказы по дням</h2>
+              </div>
+              <div className="admin-bar-chart">
+                {financeOrders.byDate.map((item) => {
+                  const maxOrders = Math.max(1, ...financeOrders.byDate.map((day) => day.orders));
+                  return (
+                    <div key={item.date}>
+                      <span>{item.date.slice(5)}</span>
+                      <b style={{ height: `${Math.max(12, (item.orders / maxOrders) * 170)}px` }} />
+                      <strong>{item.orders}</strong>
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+
+            <section className="admin-chart-card">
+              <div className="section-heading compact">
+                <span>Товары</span>
+                <h2>Что продавалось</h2>
+              </div>
+              <div className="admin-product-chart">
+                {financeOrders.topProducts.map((item) => {
+                  const maxQuantity = Math.max(1, ...financeOrders.topProducts.map((product) => product.quantity));
+                  return (
+                    <div key={item.id}>
+                      <span>{item.title}</span>
+                      <b style={{ width: `${Math.max(8, (item.quantity / maxQuantity) * 100)}%` }} />
+                      <strong>{item.quantity} шт · {formatPrice(item.total, "ru")}</strong>
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+          </div>
+        </section>
+      )}
+
+      {activeTab === "profile" && (
+        <section className="admin-profile-panel">
+          <div className="profile-card">
+            <span>Администратор</span>
+            <strong>{session.name}</strong>
+            <p>Роль: {session.role || "admin"}</p>
+          </div>
+          <div className="profile-card">
+            <span>Сессия</span>
+            <strong>{session.login || "admin"}</strong>
+            <p>Управляет товарами, заказами, чатами и промокодами.</p>
+          </div>
+        </section>
+      )}
+      </main>
     </section>
   );
 }
@@ -5154,6 +5891,7 @@ export function BeautyHarmonyWebsite({ customerAuth = null } = {}) {
     if (route === "/favorites") return <FavoritesPage />;
     if (route === "/profile") return <ProfilePage />;
     if (route === "/cart") return <CartPage />;
+    if (route === "/checkout") return <CheckoutPage />;
     if (route === "/b2b") return <B2BPage />;
     if (route === "/admin") return <AdminDashboard />;
 

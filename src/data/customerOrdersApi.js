@@ -62,7 +62,7 @@ function normalizeOrder(document) {
   };
 }
 
-export async function createCustomerOrder({ customerUser, customerProfile, form, items, total, language = "ru" }) {
+export async function createCustomerOrder({ customerUser, customerProfile, form, items, total, checkout = {}, promo = null, language = "ru" }) {
   const client = await getFirestoreClient();
   if (!client) throw new Error("FIREBASE_NOT_CONFIGURED");
 
@@ -72,6 +72,11 @@ export async function createCustomerOrder({ customerUser, customerProfile, form,
 
   const createdAtIso = new Date().toISOString();
   const customerName = normalizeText(form.name) || normalizeText(`${customerProfile?.firstName || ""} ${customerProfile?.lastName || ""}`);
+  const subtotal = normalizeNumber(total) || orderItems.reduce((sum, item) => sum + item.subtotal, 0);
+  const deliveryPrice = normalizeNumber(checkout.deliveryPrice);
+  const serviceFee = normalizeNumber(checkout.serviceFee);
+  const discount = Math.min(subtotal, normalizeNumber(promo?.discount));
+  const totalAmount = Math.max(0, subtotal + deliveryPrice + serviceFee - discount);
   const payload = {
     status: "new",
     customerUid: customerUser?.uid || "",
@@ -80,11 +85,21 @@ export async function createCustomerOrder({ customerUser, customerProfile, form,
     phoneNumber: normalizeText(form.phoneNumber),
     city: normalizeText(form.city),
     address: normalizeText(form.address),
+    latitude: normalizeText(form.latitude),
+    longitude: normalizeText(form.longitude),
     comment: normalizeText(form.comment),
     language,
+    promoCode: normalizeText(promo?.code).toUpperCase(),
+    promoId: normalizeText(promo?.id),
+    promoDiscountType: normalizeText(promo?.discountType),
+    promoDiscountValue: normalizeNumber(promo?.discountValue),
     items: orderItems,
     itemCount: orderItems.reduce((sum, item) => sum + item.quantity, 0),
-    total: normalizeNumber(total) || orderItems.reduce((sum, item) => sum + item.subtotal, 0),
+    subtotal,
+    deliveryPrice,
+    serviceFee,
+    discount,
+    total: totalAmount,
     createdAtIso,
     updatedAtIso: createdAtIso,
     createdAt: firestoreApi.serverTimestamp(),
