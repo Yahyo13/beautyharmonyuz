@@ -16,7 +16,7 @@ function toCustomerUser(user, userId = "") {
     uid,
     id: uid,
     email: user.primaryEmailAddress?.emailAddress || user.emailAddresses?.[0]?.emailAddress || "",
-    phoneNumber: user.primaryPhoneNumber?.phoneNumber || user.phoneNumbers?.[0]?.phoneNumber || "",
+    phoneNumber: user.primaryPhoneNumber?.phoneNumber || user.phoneNumbers?.[0]?.phoneNumber || user.unsafeMetadata?.phoneNumber || "",
     firstName: user.firstName || "",
     lastName: user.lastName || "",
     displayName: user.fullName || "",
@@ -38,9 +38,27 @@ function ClerkAuthBridge() {
       user: customerUser,
       openSignIn: () => clerk.openSignIn(),
       openSignUp: () => clerk.openSignUp(),
+      updateProfile: async (profilePatch = {}) => {
+        if (!user) throw new Error("CLERK_USER_MISSING");
+        const firstName = String(profilePatch.firstName || "").trim();
+        const lastName = String(profilePatch.lastName || "").trim();
+        const phoneNumber = String(profilePatch.phoneNumber || "").trim();
+
+        await user.update({
+          firstName,
+          lastName,
+          unsafeMetadata: {
+            ...(user.unsafeMetadata || {}),
+            phoneNumber,
+          },
+        });
+
+        await user.reload();
+        return toCustomerUser(user, userId);
+      },
       signOut: () => clerk.signOut({ redirectUrl: appHomeUrl }),
     }),
-    [authVersion, clerk, customerUser, isLoaded]
+    [authVersion, clerk, customerUser, isLoaded, user, userId]
   );
 
   return <BeautyHarmonyWebsite customerAuth={customerAuth} />;

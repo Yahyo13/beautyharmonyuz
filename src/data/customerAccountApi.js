@@ -94,6 +94,10 @@ function normalizeCustomerProfile(user, data = {}) {
   };
 }
 
+export function createCustomerProfileFromUser(user, data = {}) {
+  return normalizeCustomerProfile(user || {}, data);
+}
+
 export async function subscribeCustomerAuth(callback) {
   const client = await getFirebaseAuthClient();
   if (!client) {
@@ -223,40 +227,45 @@ export async function getCustomerProfile(user) {
   const client = await getFirestoreClient();
   if (!client) return normalizeCustomerProfile(user);
 
-  const { db, firestoreApi } = client;
-  const profileRef = firestoreApi.doc(db, "users", user.uid);
-  const snapshot = await firestoreApi.getDoc(profileRef);
+  try {
+    const { db, firestoreApi } = client;
+    const profileRef = firestoreApi.doc(db, "users", user.uid);
+    const snapshot = await firestoreApi.getDoc(profileRef);
 
-  if (!snapshot.exists()) {
-    const createdProfile = normalizeCustomerProfile(user);
-    await firestoreApi.setDoc(
-      profileRef,
-      {
-        uid: user.uid,
-        email: user.email || "",
-        phoneNumber: user.phoneNumber || "",
-        phoneDigits: getPhoneDigits(user.phoneNumber || ""),
-        firstName: user.firstName || "",
-        lastName: user.lastName || "",
-        displayName: user.displayName || `${user.firstName || ""} ${user.lastName || ""}`.trim(),
-        favoriteIds: [],
-        cartItems: [],
-        createdAt: firestoreApi.serverTimestamp(),
-        updatedAt: firestoreApi.serverTimestamp(),
-      },
-      { merge: true }
-    );
-    return createdProfile;
+    if (!snapshot.exists()) {
+      const createdProfile = normalizeCustomerProfile(user);
+      await firestoreApi.setDoc(
+        profileRef,
+        {
+          uid: user.uid,
+          email: user.email || "",
+          phoneNumber: user.phoneNumber || "",
+          phoneDigits: getPhoneDigits(user.phoneNumber || ""),
+          firstName: user.firstName || "",
+          lastName: user.lastName || "",
+          displayName: user.displayName || `${user.firstName || ""} ${user.lastName || ""}`.trim(),
+          favoriteIds: [],
+          cartItems: [],
+          createdAt: firestoreApi.serverTimestamp(),
+          updatedAt: firestoreApi.serverTimestamp(),
+        },
+        { merge: true }
+      );
+      return createdProfile;
+    }
+
+    const data = snapshot.data();
+    const nextProfile = normalizeCustomerProfile(user, data);
+
+    if (user.email && data.email !== user.email) {
+      await firestoreApi.setDoc(profileRef, { email: user.email, updatedAt: firestoreApi.serverTimestamp() }, { merge: true });
+    }
+
+    return nextProfile;
+  } catch (error) {
+    console.warn("[Customer] Firestore profile unavailable:", error);
+    return normalizeCustomerProfile(user);
   }
-
-  const data = snapshot.data();
-  const nextProfile = normalizeCustomerProfile(user, data);
-
-  if (user.email && data.email !== user.email) {
-    await firestoreApi.setDoc(profileRef, { email: user.email, updatedAt: firestoreApi.serverTimestamp() }, { merge: true });
-  }
-
-  return nextProfile;
 }
 
 export async function saveCustomerProfile(user, profilePatch) {

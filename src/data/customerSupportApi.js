@@ -1,5 +1,7 @@
 import { getFirestoreClient, hasFirebaseConfig } from "./firebaseCatalogApi";
 
+const localSupportStorageKey = "beauty-harmony-local-support-threads";
+
 export function hasSupportConfig() {
   return hasFirebaseConfig();
 }
@@ -29,6 +31,59 @@ function getSupportThreadId(customerUser, topic = "questions") {
   return cleanTopic === "orders" ? `${customerUser.uid}-orders` : customerUser.uid;
 }
 
+function readLocalSupportThreads() {
+  if (typeof localStorage === "undefined") return {};
+
+  try {
+    return JSON.parse(localStorage.getItem(localSupportStorageKey) || "{}") || {};
+  } catch {
+    return {};
+  }
+}
+
+function writeLocalSupportThreads(threads) {
+  if (typeof localStorage === "undefined") return;
+  localStorage.setItem(localSupportStorageKey, JSON.stringify(threads || {}));
+}
+
+function getLocalSupportThread(customerUser, customerProfile, topic = "questions") {
+  if (!customerUser?.uid) return null;
+
+  const cleanTopic = normalizeTopic(topic);
+  const threadId = getSupportThreadId(customerUser, cleanTopic);
+  const threads = readLocalSupportThreads();
+  const savedThread = threads[threadId];
+
+  if (savedThread) return normalizeThread(savedThread);
+
+  const createdAtIso = new Date().toISOString();
+  const thread = {
+    id: threadId,
+    customerUid: customerUser.uid,
+    customerEmail: customerUser.email || "",
+    customerName: normalizeText(`${customerProfile?.firstName || ""} ${customerProfile?.lastName || ""}`) || customerUser.email || "",
+    topic: cleanTopic,
+    status: "open",
+    messages: [],
+    unreadByAdmin: 0,
+    unreadByCustomer: 0,
+    createdAtIso,
+    updatedAtIso: createdAtIso,
+    isLocalFallback: true,
+  };
+
+  threads[threadId] = thread;
+  writeLocalSupportThreads(threads);
+  return thread;
+}
+
+function saveLocalSupportThread(thread) {
+  const threads = readLocalSupportThreads();
+  threads[thread.id] = { ...thread, isLocalFallback: true };
+  writeLocalSupportThreads(threads);
+  return threads[thread.id];
+}
+
 function buildMessage(text, author, authorName) {
   const createdAtIso = new Date().toISOString();
   return {
@@ -44,34 +99,39 @@ export async function getCustomerSupportThread(customerUser, customerProfile, to
   if (!customerUser?.uid) return null;
 
   const client = await getFirestoreClient();
-  if (!client) return null;
+  if (!client) return getLocalSupportThread(customerUser, customerProfile, topic);
 
-  const { db, firestoreApi } = client;
-  const cleanTopic = normalizeTopic(topic);
-  const threadRef = firestoreApi.doc(db, "supportThreads", getSupportThreadId(customerUser, cleanTopic));
-  const snapshot = await firestoreApi.getDoc(threadRef);
+  try {
+    const { db, firestoreApi } = client;
+    const cleanTopic = normalizeTopic(topic);
+    const threadRef = firestoreApi.doc(db, "supportThreads", getSupportThreadId(customerUser, cleanTopic));
+    const snapshot = await firestoreApi.getDoc(threadRef);
 
-  if (snapshot.exists()) return normalizeThread({ id: snapshot.id, ...snapshot.data() });
+    if (snapshot.exists()) return normalizeThread({ id: snapshot.id, ...snapshot.data() });
 
-  const createdAtIso = new Date().toISOString();
-  const payload = {
-    id: getSupportThreadId(customerUser, cleanTopic),
-    customerUid: customerUser.uid,
-    customerEmail: customerUser.email || "",
-    customerName: normalizeText(`${customerProfile?.firstName || ""} ${customerProfile?.lastName || ""}`) || customerUser.email || "",
-    topic: cleanTopic,
-    status: "open",
-    messages: [],
-    unreadByAdmin: 0,
-    unreadByCustomer: 0,
-    createdAtIso,
-    updatedAtIso: createdAtIso,
-    createdAt: firestoreApi.serverTimestamp(),
-    updatedAt: firestoreApi.serverTimestamp(),
-  };
+    const createdAtIso = new Date().toISOString();
+    const payload = {
+      id: getSupportThreadId(customerUser, cleanTopic),
+      customerUid: customerUser.uid,
+      customerEmail: customerUser.email || "",
+      customerName: normalizeText(`${customerProfile?.firstName || ""} ${customerProfile?.lastName || ""}`) || customerUser.email || "",
+      topic: cleanTopic,
+      status: "open",
+      messages: [],
+      unreadByAdmin: 0,
+      unreadByCustomer: 0,
+      createdAtIso,
+      updatedAtIso: createdAtIso,
+      createdAt: firestoreApi.serverTimestamp(),
+      updatedAt: firestoreApi.serverTimestamp(),
+    };
 
-  await firestoreApi.setDoc(threadRef, payload, { merge: true });
-  return payload;
+    await firestoreApi.setDoc(threadRef, payload, { merge: true });
+    return payload;
+  } catch (error) {
+    console.warn("[Support] Firestore thread unavailable:", error);
+    return getLocalSupportThread(customerUser, customerProfile, topic);
+  }
 }
 
 export async function sendCustomerSupportMessage({ customerUser, customerProfile, text, topic = "questions" }) {
@@ -79,33 +139,52 @@ export async function sendCustomerSupportMessage({ customerUser, customerProfile
   if (!normalizeText(text)) throw new Error("MESSAGE_EMPTY");
 
   const client = await getFirestoreClient();
-  if (!client) throw new Error("FIREBASE_NOT_CONFIGURED");
-
-  const { db, firestoreApi } = client;
-  const cleanTopic = normalizeTopic(topic);
-  const threadRef = firestoreApi.doc(db, "supportThreads", getSupportThreadId(customerUser, cleanTopic));
-  const thread = (await getCustomerSupportThread(customerUser, customerProfile, cleanTopic)) || {};
-  const message = buildMessage(text, "customer", thread.customerName || customerUser.email || "Customer");
-  const messages = [...(thread.messages || []), message].slice(-120);
-
-  await firestoreApi.setDoc(
-    threadRef,
-    {
-      customerUid: customerUser.uid,
-      customerEmail: customerUser.email || "",
-      customerName: normalizeText(`${customerProfile?.firstName || ""} ${customerProfile?.lastName || ""}`) || customerUser.email || "",
-      topic: cleanTopic,
-      status: "open",
+  const saveLocalMessage = async () => {
+    const cleanTopic = normalizeTopic(topic);
+    const thread = getLocalSupportThread(customerUser, customerProfile, cleanTopic) || {};
+    const message = buildMessage(text, "customer", thread.customerName || customerUser.email || "Customer");
+    const messages = [...(thread.messages || []), message].slice(-120);
+    return saveLocalSupportThread({
+      ...thread,
       messages,
       unreadByAdmin: (Number(thread.unreadByAdmin) || 0) + 1,
       unreadByCustomer: 0,
       updatedAtIso: message.createdAtIso,
-      updatedAt: firestoreApi.serverTimestamp(),
-    },
-    { merge: true }
-  );
+    });
+  };
 
-  return { ...thread, messages, unreadByAdmin: (Number(thread.unreadByAdmin) || 0) + 1, updatedAtIso: message.createdAtIso };
+  if (!client) return saveLocalMessage();
+
+  try {
+    const { db, firestoreApi } = client;
+    const cleanTopic = normalizeTopic(topic);
+    const threadRef = firestoreApi.doc(db, "supportThreads", getSupportThreadId(customerUser, cleanTopic));
+    const thread = (await getCustomerSupportThread(customerUser, customerProfile, cleanTopic)) || {};
+    const message = buildMessage(text, "customer", thread.customerName || customerUser.email || "Customer");
+    const messages = [...(thread.messages || []), message].slice(-120);
+
+    await firestoreApi.setDoc(
+      threadRef,
+      {
+        customerUid: customerUser.uid,
+        customerEmail: customerUser.email || "",
+        customerName: normalizeText(`${customerProfile?.firstName || ""} ${customerProfile?.lastName || ""}`) || customerUser.email || "",
+        topic: cleanTopic,
+        status: "open",
+        messages,
+        unreadByAdmin: (Number(thread.unreadByAdmin) || 0) + 1,
+        unreadByCustomer: 0,
+        updatedAtIso: message.createdAtIso,
+        updatedAt: firestoreApi.serverTimestamp(),
+      },
+      { merge: true }
+    );
+
+    return { ...thread, messages, unreadByAdmin: (Number(thread.unreadByAdmin) || 0) + 1, updatedAtIso: message.createdAtIso };
+  } catch (error) {
+    console.warn("[Support] Firestore message save failed:", error);
+    return saveLocalMessage();
+  }
 }
 
 export async function fetchSupportThreads() {

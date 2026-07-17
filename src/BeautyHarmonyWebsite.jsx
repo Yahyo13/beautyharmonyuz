@@ -117,6 +117,7 @@ import {
 import {
   completeCustomerEmailLinkSignIn,
   createCustomerWithPassword,
+  createCustomerProfileFromUser,
   getCustomerProfile,
   hasCustomerAuthConfig,
   isCustomerEmailSignInLink,
@@ -6003,7 +6004,30 @@ export function BeautyHarmonyWebsite({ customerAuth = null } = {}) {
     setIsCustomerLoading(true);
     setCustomerError("");
     try {
-      const savedProfile = await saveCustomerProfile(customerUser, profilePatch);
+      let nextCustomerUser = customerUser;
+
+      if (usesExternalCustomerAuth && customerAuth?.updateProfile) {
+        try {
+          nextCustomerUser = await customerAuth.updateProfile(profilePatch);
+          if (nextCustomerUser?.uid) setCustomerUser(nextCustomerUser);
+        } catch (error) {
+          console.warn("[Customer] Clerk profile save failed:", error);
+        }
+      }
+
+      const fallbackProfile = createCustomerProfileFromUser(nextCustomerUser || customerUser, {
+        ...(customerProfile || {}),
+        ...profilePatch,
+      });
+      let savedProfile = fallbackProfile;
+
+      try {
+        savedProfile = await saveCustomerProfile(nextCustomerUser || customerUser, profilePatch);
+      } catch (error) {
+        console.warn("[Customer] Firestore profile save failed:", error);
+        if (!usesExternalCustomerAuth) throw error;
+      }
+
       const nextProfile = {
         ...(customerProfile || {}),
         ...savedProfile,
@@ -6018,7 +6042,7 @@ export function BeautyHarmonyWebsite({ customerAuth = null } = {}) {
     } finally {
       setIsCustomerLoading(false);
     }
-  }, [cartItems, customerProfile, customerUser, favoriteIds]);
+  }, [cartItems, customerAuth, customerProfile, customerUser, favoriteIds, usesExternalCustomerAuth]);
 
   const logoutCustomer = useCallback(async () => {
     setIsCustomerLoading(true);
