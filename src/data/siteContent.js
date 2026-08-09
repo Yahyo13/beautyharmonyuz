@@ -170,13 +170,13 @@ export const ui = {
     },
     about: {
       eyebrow: "О компании",
-      title: "Beauty Harmony развивает понятную витрину ухода и товаров для дома",
+      title: "Beauty Harmony: официальный дистрибьютор косметики",
       intro:
-        "Мы собираем для рынка Узбекистана бренды с сильной историей, понятными категориями и готовой логикой продаж: уход за волосами, лицом, телом, депиляция, детская линейка, мужской уход и household.",
+        "Мы поставляем в Узбекистан косметические бренды для магазинов, аптек, салонов, супермаркетов и маркетплейсов. На сайте собраны категории ухода за волосами, лицом, телом, депиляция, детская линейка и мужской уход.",
       missionLabel: "Наша задача",
       missionTitle: "Сделать импортные бренды ближе к покупателю",
       missionText:
-        "На сайте каждый бренд раскрыт отдельно: производитель, годы работы, категории, преимущества и карточки товаров. Так покупатель быстро понимает, что выбрать, а партнер видит, как бренд можно поставить на полку или в маркетплейс.",
+        "Каждый бренд раскрыт отдельно: производитель, годы работы, категории, преимущества и карточки товаров. Покупатель быстрее понимает, что выбрать, а партнер видит, как бренд можно поставить на полку или в маркетплейс.",
       portfolioTitle: "Портфель брендов",
       portfolioText:
         "В каталоге представлены Dr.Sante, Fresh Juice, The Doctor, Green Pharmacy, Lady Caramel, Cool Men и Pink Elephant. Для каждого направления подобрана своя визуальная подача и структура товара.",
@@ -410,13 +410,13 @@ export const ui = {
     },
     about: {
       eyebrow: "Kompaniya haqida",
-      title: "Beauty Harmony parvarish va uy tovarlari uchun tushunarli vitrina yaratadi",
+      title: "Beauty Harmony: kosmetika mahsulotlarining rasmiy distribyutori",
       intro:
-        "Biz O'zbekiston bozori uchun kuchli tarixga, aniq kategoriyalarga va sotuvga tayyor mantiqqa ega brendlarni jamlaymiz: soch, yuz, tana parvarishi, depilyatsiya, bolalar liniyasi, erkaklar parvarishi va household.",
-      missionLabel: "Bizning vazifa",
-      missionTitle: "Import brendlarni xaridorga yaqinroq qilish",
+        "Biz kosmetika brendlarini O'zbekistondagi do'konlar, dorixonalar, salonlar, supermarketlar va marketplace'lar uchun yetkazib beramiz. Saytda soch, yuz, tana parvarishi, depilyatsiya, bolalar liniyasi va erkaklar parvarishi bo'yicha mahsulotlar jamlangan.",
+      missionLabel: "Bizning vazifamiz",
+      missionTitle: "Import brendlarni xaridorga yaqin qilish",
       missionText:
-        "Saytda har bir brend alohida ochilgan: ishlab chiqaruvchi, ishlash yillari, kategoriyalar, afzalliklar va tovar kartochkalari. Xaridor tez tanlaydi, hamkor esa brendni polka yoki marketpleysga qanday chiqarishni ko'radi.",
+        "Har bir brend uchun ishlab chiqaruvchi, bozordagi tajriba, kategoriyalar, afzalliklar va tovar kartochkalari alohida ko'rsatilgan. Xaridor tez tanlaydi, hamkor esa mahsulotni savdo rastasi yoki marketplace'ga qanday chiqarishni ko'radi.",
       portfolioTitle: "Brendlar portfeli",
       portfolioText:
         "Katalogda Dr.Sante, Fresh Juice, The Doctor, Green Pharmacy, Lady Caramel, Cool Men va Pink Elephant bor. Har bir yo'nalish uchun o'ziga mos vizual uslub va tovar tuzilmasi tanlangan.",

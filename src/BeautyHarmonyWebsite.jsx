@@ -155,7 +155,6 @@ import { useHashRoute, useRevealAnimation } from "./hooks/usePageEffects";
 const heroImageUrl = `${import.meta.env.BASE_URL}beauty-harmony-hero.png`;
 const logoUrl = `${import.meta.env.BASE_URL}beauty-harmony-logo.png`;
 const instagramUrl = "https://www.instagram.com/dr.sante_uz/";
-const telegramBotUrl = "https://t.me/beautyharmonyuz_bot";
 const turnstileSiteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY || "";
 const defaultPartnerBrands = "Dr.Sante, Fresh Juice, Green Pharmacy";
 const favoritesStorageKey = "beauty-harmony-favorites";
@@ -1284,6 +1283,21 @@ function ProductMockup({ brand, compact = false }) {
   );
 }
 
+function BrandLogoMark({ brand }) {
+  const { language } = useLocale();
+  const copy = getBrandCopy(brand, language);
+  const words = copy.name.split(" ");
+
+  return (
+    <div className={`brand-logo-mark ${copy.theme}`} aria-label={copy.name}>
+      {copy.slug === "the-doctor" && <span className="brand-logo-mark__plus">+</span>}
+      {copy.slug === "green-pharmacy" && <Leaf size={24} aria-hidden="true" />}
+      <strong>{words[0]}</strong>
+      {words.slice(1).length > 0 && <small>{words.slice(1).join(" ")}</small>}
+    </div>
+  );
+}
+
 // Карточка бренда в списке брендов.
 function BrandCard({ brand }) {
   const { language, t } = useLocale();
@@ -1297,7 +1311,7 @@ function BrandCard({ brand }) {
       </div>
 
       <div className="brand-card__body">
-        <ProductMockup brand={copy} compact />
+        <BrandLogoMark brand={copy} />
         <div>
           <h3>{copy.localName}</h3>
           <p className="brand-intro">{copy.intro}</p>
@@ -1381,7 +1395,7 @@ function HomePage() {
       <section className="quick-brands reveal">
         {featured.map((brand) => (
           <a className={`quick-brand ${brand.theme}`} href={`#/brand/${brand.slug}`} key={brand.slug}>
-            <ProductMockup brand={brand} compact />
+            <BrandLogoMark brand={brand} />
             <div>
               <span>{brand.mood}</span>
               <h3>{brand.name}</h3>
@@ -1720,15 +1734,6 @@ function CatalogPage() {
     );
   }, [catalogProducts]);
 
-  const minCatalogPrice = useMemo(() => {
-    const prices = catalogProducts.map((product) => product.price).filter(Boolean);
-    return prices.length > 0 ? Math.min(...prices) : null;
-  }, [catalogProducts]);
-
-  const activeCategoryCount = useMemo(() => {
-    return Object.keys(productCountByCategory).filter((key) => key !== "all" && productCountByCategory[key] > 0).length;
-  }, [productCountByCategory]);
-
   const filteredProducts = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
 
@@ -1787,20 +1792,6 @@ function CatalogPage() {
           </div>
         </div>
 
-        <div className="catalog-hero__stats reveal is-visible">
-          <div>
-            <strong>{catalogProducts.length}</strong>
-            <span>{t.catalog.products}</span>
-          </div>
-          <div>
-            <strong>{formatPrice(minCatalogPrice, language)}</strong>
-            <span>{t.catalog.minPrice}</span>
-          </div>
-          <div>
-            <strong>{activeCategoryCount}</strong>
-            <span>{t.catalog.categories}</span>
-          </div>
-        </div>
       </header>
 
       <section className="catalog-page">
@@ -2233,12 +2224,10 @@ function AboutCompanyPage() {
           </div>
         </div>
 
-        <div className="about-company-hero__visual" aria-hidden="true">
-          {featuredBrands.map((brand) => (
-            <span className={brand.theme} key={brand.slug}>
-              {brand.name}
-            </span>
-          ))}
+        <div className="about-company-hero__visual about-company-hero__visual--logo" aria-hidden="true">
+          <img src={logoUrl} alt="" />
+          <strong>Beauty Harmony</strong>
+          <span>{language === "uz" ? "Rasmiy distribyutor" : "Официальный дистрибьютор"}</span>
         </div>
       </header>
 
@@ -5530,13 +5519,6 @@ function Footer() {
             <span>
               <strong>Instagram</strong>
               <small>@dr.sante_uz</small>
-            </span>
-          </a>
-          <a className="social-link" href={telegramBotUrl} target="_blank" rel="noreferrer">
-            <Send size={18} aria-hidden="true" />
-            <span>
-              <strong>Telegram bot</strong>
-              <small>@beautyharmonyuz_bot</small>
             </span>
           </a>
         </div>

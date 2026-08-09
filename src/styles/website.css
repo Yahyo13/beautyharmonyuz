@@ -1223,6 +1223,128 @@ footer,
   clip-path: polygon(50% 4%, 62% 30%, 92% 20%, 72% 50%, 88% 86%, 52% 70%, 24% 96%, 32% 60%, 4% 48%, 34% 38%);
 }
 
+.brand-logo-mark {
+  position: relative;
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  width: 150px;
+  min-height: 154px;
+  padding: 18px 14px;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--brand) 22%, rgba(23, 32, 42, 0.1));
+  border-radius: 8px;
+  color: var(--brand-deep);
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.92), rgba(255, 255, 255, 0.68)),
+    radial-gradient(circle at 88% 12%, color-mix(in srgb, var(--brand-soft) 90%, transparent), transparent 34%),
+    linear-gradient(145deg, color-mix(in srgb, var(--brand-pale) 82%, #ffffff), #ffffff);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.68), 0 18px 34px color-mix(in srgb, var(--brand) 14%, transparent);
+}
+
+.brand-logo-mark::before {
+  position: absolute;
+  inset: 12px;
+  border: 1px solid color-mix(in srgb, var(--brand) 12%, rgba(255, 255, 255, 0.7));
+  border-radius: 8px;
+  background:
+    repeating-linear-gradient(135deg, color-mix(in srgb, var(--brand) 8%, transparent) 0 1px, transparent 1px 14px),
+    linear-gradient(135deg, transparent 0 58%, color-mix(in srgb, var(--brand-accent) 14%, transparent) 58% 100%);
+  content: "";
+}
+
+.brand-logo-mark strong,
+.brand-logo-mark small,
+.brand-logo-mark svg,
+.brand-logo-mark__plus {
+  position: relative;
+  z-index: 1;
+}
+
+.brand-logo-mark strong {
+  color: currentColor;
+  font-size: 1.22rem;
+  font-weight: 1000;
+  line-height: 0.95;
+  text-align: center;
+}
+
+.brand-logo-mark small {
+  margin-top: 4px;
+  color: color-mix(in srgb, var(--brand) 84%, var(--brand-deep));
+  font-size: 0.88rem;
+  font-weight: 1000;
+  line-height: 1;
+  text-align: center;
+}
+
+.brand-logo-mark.theme-sante strong {
+  color: #151515;
+  font-size: 1.18rem;
+  font-weight: 850;
+}
+
+.brand-logo-mark.theme-juice strong,
+.brand-logo-mark.theme-juice small {
+  color: #f02028;
+  text-transform: uppercase;
+}
+
+.brand-logo-mark.theme-green strong,
+.brand-logo-mark.theme-green small {
+  color: #4a2a15;
+  text-transform: uppercase;
+}
+
+.brand-logo-mark.theme-green svg {
+  margin-bottom: 8px;
+  color: #0f6b43;
+}
+
+.brand-logo-mark.theme-caramel strong,
+.brand-logo-mark.theme-caramel small {
+  color: #6a1b35;
+  font-family: Georgia, "Times New Roman", serif;
+  font-style: italic;
+}
+
+.brand-logo-mark.theme-doctor {
+  color: #14202a;
+}
+
+.brand-logo-mark__plus {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  margin-bottom: 10px;
+  border: 4px solid #ffffff;
+  border-radius: 50%;
+  color: #ffffff;
+  background: #d92732;
+  box-shadow: 0 8px 18px rgba(217, 39, 50, 0.28);
+  font-size: 2.2rem;
+  font-weight: 1000;
+  line-height: 1;
+}
+
+.brand-logo-mark.theme-cool {
+  color: #0a3d2a;
+  background:
+    linear-gradient(135deg, rgba(255, 253, 245, 0.96), rgba(239, 248, 241, 0.82)),
+    radial-gradient(circle at 86% 10%, rgba(200, 160, 77, 0.26), transparent 34%);
+}
+
+.brand-logo-mark.theme-cool strong,
+.brand-logo-mark.theme-cool small {
+  color: #0a3d2a;
+}
+
+.brand-logo-mark.theme-pink strong,
+.brand-logo-mark.theme-pink small {
+  color: #9b2c5b;
+}
+
 .mock-scene {
   --brand: #ff5d75;
   --brand-soft: rgba(255, 93, 117, 0.26);
@@ -4058,6 +4180,61 @@ footer p {
 
 .about-company-hero__visual span:nth-child(4) {
   transform: translate(54px, 58px) rotate(-5deg);
+}
+
+.about-company-hero__visual--logo {
+  align-content: center;
+  gap: 12px;
+  padding: 34px;
+  background:
+    linear-gradient(130deg, rgba(255, 253, 245, 0.94), rgba(255, 255, 255, 0.72)),
+    radial-gradient(circle at 18% 18%, rgba(200, 160, 77, 0.16), transparent 30%),
+    radial-gradient(circle at 88% 18%, rgba(10, 85, 49, 0.18), transparent 32%),
+    linear-gradient(135deg, #fbf6e8 0%, #ffffff 52%, #e9f4ec 100%);
+}
+
+.about-company-hero__visual--logo::before {
+  inset: 24px;
+  border-color: rgba(10, 61, 42, 0.14);
+  border-radius: 8px;
+  background:
+    linear-gradient(135deg, transparent 0 62%, rgba(10, 61, 42, 0.08) 62% 100%),
+    repeating-linear-gradient(135deg, rgba(10, 61, 42, 0.055) 0 1px, transparent 1px 16px);
+}
+
+.about-company-hero__visual--logo img,
+.about-company-hero__visual--logo strong,
+.about-company-hero__visual--logo span {
+  position: relative;
+  z-index: 1;
+}
+
+.about-company-hero__visual--logo img {
+  width: min(360px, 84%);
+  max-height: 112px;
+  object-fit: contain;
+  filter: drop-shadow(0 16px 22px rgba(9, 44, 30, 0.12));
+}
+
+.about-company-hero__visual--logo strong {
+  color: #0a3d2a;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(1.85rem, 4vw, 3.2rem);
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.about-company-hero__visual--logo span {
+  min-width: 0;
+  min-height: 0;
+  padding: 8px 14px;
+  border-color: rgba(200, 160, 77, 0.38);
+  color: #0a3d2a;
+  background: rgba(255, 248, 225, 0.9);
+  box-shadow: 0 12px 28px rgba(9, 44, 30, 0.08);
+  transform: none !important;
 }
 
 .about-company-stats {
@@ -6981,5 +7158,63 @@ footer p {
 
   .checkout-page {
     width: calc(100% - 24px);
+  }
+}
+
+/* Final polish for shared button and company hero overrides. */
+.app-button.app-button > span {
+  width: auto;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  color: inherit;
+  background: transparent;
+  box-shadow: none;
+}
+
+.app-button.app-button > svg {
+  color: currentColor;
+}
+
+.app-button:not(.ghost):not(.secondary) {
+  color: #ffffff;
+}
+
+.app-button.secondary {
+  color: #0a3d2a;
+}
+
+.about-company-hero h1 {
+  max-width: 760px;
+  font-size: clamp(2.35rem, 5.2vw, 4.9rem);
+  line-height: 0.98;
+}
+
+.about-company-hero p {
+  max-width: 680px;
+  font-size: clamp(1rem, 1.25vw, 1.12rem);
+}
+
+:root[data-theme="dark"] .about-company-hero__visual--logo {
+  border-color: rgba(226, 237, 247, 0.14);
+  background:
+    radial-gradient(circle at 18% 18%, rgba(200, 160, 77, 0.12), transparent 30%),
+    radial-gradient(circle at 88% 18%, rgba(28, 138, 81, 0.16), transparent 32%),
+    linear-gradient(135deg, #101822 0%, #121d18 52%, #0d1713 100%);
+}
+
+:root[data-theme="dark"] .about-company-hero__visual--logo strong {
+  color: #f5fff8;
+}
+
+:root[data-theme="dark"] .about-company-hero__visual--logo span {
+  color: #f5fff8;
+  background: rgba(200, 160, 77, 0.16);
+}
+
+@media (max-width: 640px) {
+  .about-company-hero h1 {
+    font-size: clamp(2.2rem, 10vw, 3rem);
   }
 }
