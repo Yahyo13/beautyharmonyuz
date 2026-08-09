@@ -155,13 +155,13 @@ import { useHashRoute, useRevealAnimation } from "./hooks/usePageEffects";
 const heroImageUrl = `${import.meta.env.BASE_URL}beauty-harmony-hero.png`;
 const logoUrl = `${import.meta.env.BASE_URL}beauty-harmony-logo.png`;
 const brandLogoUrls = {
-  "dr-sante": `${import.meta.env.BASE_URL}brand-logos/dr-sante.svg`,
+  "dr-sante": `${import.meta.env.BASE_URL}brand-logos/dr-sante.png`,
   "fresh-juice": `${import.meta.env.BASE_URL}brand-logos/fresh-juice.svg`,
   "the-doctor": `${import.meta.env.BASE_URL}brand-logos/the-doctor.svg`,
-  "green-pharmacy": `${import.meta.env.BASE_URL}brand-logos/green-pharmacy.svg`,
-  "lady-caramel": `${import.meta.env.BASE_URL}brand-logos/lady-caramel.svg`,
+  "green-pharmacy": `${import.meta.env.BASE_URL}brand-logos/green-pharmacy.png`,
+  "lady-caramel": `${import.meta.env.BASE_URL}brand-logos/lady-caramel.png`,
   "cool-men": `${import.meta.env.BASE_URL}brand-logos/cool-men.svg`,
-  "pink-elephant": `${import.meta.env.BASE_URL}brand-logos/pink-elephant.svg`,
+  "pink-elephant": `${import.meta.env.BASE_URL}brand-logos/pink-elephant.png`,
 };
 const instagramUrl = "https://www.instagram.com/dr.sante_uz/";
 const turnstileSiteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY || "";
