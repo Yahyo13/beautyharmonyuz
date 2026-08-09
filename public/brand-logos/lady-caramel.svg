@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 300" role="img" aria-label="Lady Caramel">
+  <rect width="640" height="300" fill="#fff"/>
+  <text x="340" y="108" text-anchor="middle" font-family="Brush Script MT, Segoe Script, cursive" font-size="94" fill="#070707">Lady</text>
+  <text x="300" y="198" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="108" font-weight="400" fill="#6b2608">Caramel</text>
+  <path d="M87 159c8-68 83-112 148-80" fill="none" stroke="#6b2608" stroke-width="14" stroke-linecap="round"/>
+</svg>

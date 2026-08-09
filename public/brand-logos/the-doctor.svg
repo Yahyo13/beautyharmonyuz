@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 540 540" role="img" aria-label="The Doctor Health and Care">
+  <rect width="540" height="540" fill="#fff"/>
+  <defs>
+    <linearGradient id="orangeDoctor" x1="80" y1="65" x2="475" y2="480" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#ffb100"/>
+      <stop offset=".48" stop-color="#ff8200"/>
+      <stop offset="1" stop-color="#ff6f00"/>
+    </linearGradient>
+  </defs>
+  <circle cx="270" cy="270" r="224" fill="url(#orangeDoctor)"/>
+  <circle cx="270" cy="270" r="205" fill="none" stroke="#fff" stroke-width="8"/>
+  <circle cx="270" cy="270" r="128" fill="none" stroke="#fff" stroke-width="8"/>
+  <path d="M241 178h58c9 0 14 5 14 14v65h65c9 0 14 5 14 14v58c0 9-5 14-14 14h-65v65c0 9-5 14-14 14h-58c-9 0-14-5-14-14v-65h-65c-9 0-14-5-14-14v-58c0-9 5-14 14-14h65v-65c0-9 5-14 14-14Z" fill="#fff"/>
+  <text x="270" y="111" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="54" font-weight="900" fill="#fff" transform="rotate(-14 270 111)">The Doctor</text>
+  <text x="270" y="446" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="43" font-weight="900" fill="#fff" transform="rotate(-1 270 446)">Health &amp; Care</text>
+  <path d="M72 214c-16 43-16 80 0 112" fill="none" stroke="#ffbe55" stroke-width="18" stroke-linecap="round" opacity=".9"/>
+  <path d="M468 214c16 43 16 80 0 112" fill="none" stroke="#ffbe55" stroke-width="18" stroke-linecap="round" opacity=".9"/>
+</svg>

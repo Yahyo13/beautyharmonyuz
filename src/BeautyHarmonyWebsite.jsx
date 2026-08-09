@@ -154,6 +154,15 @@ import { useHashRoute, useRevealAnimation } from "./hooks/usePageEffects";
 // Общие настройки и env-переменные.
 const heroImageUrl = `${import.meta.env.BASE_URL}beauty-harmony-hero.png`;
 const logoUrl = `${import.meta.env.BASE_URL}beauty-harmony-logo.png`;
+const brandLogoUrls = {
+  "dr-sante": `${import.meta.env.BASE_URL}brand-logos/dr-sante.svg`,
+  "fresh-juice": `${import.meta.env.BASE_URL}brand-logos/fresh-juice.svg`,
+  "the-doctor": `${import.meta.env.BASE_URL}brand-logos/the-doctor.svg`,
+  "green-pharmacy": `${import.meta.env.BASE_URL}brand-logos/green-pharmacy.svg`,
+  "lady-caramel": `${import.meta.env.BASE_URL}brand-logos/lady-caramel.svg`,
+  "cool-men": `${import.meta.env.BASE_URL}brand-logos/cool-men.svg`,
+  "pink-elephant": `${import.meta.env.BASE_URL}brand-logos/pink-elephant.svg`,
+};
 const instagramUrl = "https://www.instagram.com/dr.sante_uz/";
 const turnstileSiteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY || "";
 const defaultPartnerBrands = "Dr.Sante, Fresh Juice, Green Pharmacy";
@@ -1287,13 +1296,20 @@ function BrandLogoMark({ brand }) {
   const { language } = useLocale();
   const copy = getBrandCopy(brand, language);
   const words = copy.name.split(" ");
+  const logoSrc = brandLogoUrls[copy.slug];
 
   return (
     <div className={`brand-logo-mark ${copy.theme}`} aria-label={copy.name}>
-      {copy.slug === "the-doctor" && <span className="brand-logo-mark__plus">+</span>}
-      {copy.slug === "green-pharmacy" && <Leaf size={24} aria-hidden="true" />}
-      <strong>{words[0]}</strong>
-      {words.slice(1).length > 0 && <small>{words.slice(1).join(" ")}</small>}
+      {logoSrc ? (
+        <img src={logoSrc} alt="" loading="lazy" />
+      ) : (
+        <>
+          {copy.slug === "the-doctor" && <span className="brand-logo-mark__plus">+</span>}
+          {copy.slug === "green-pharmacy" && <Leaf size={24} aria-hidden="true" />}
+          <strong>{words[0]}</strong>
+          {words.slice(1).length > 0 && <small>{words.slice(1).join(" ")}</small>}
+        </>
+      )}
     </div>
   );
 }
@@ -2226,7 +2242,6 @@ function AboutCompanyPage() {
 
         <div className="about-company-hero__visual about-company-hero__visual--logo" aria-hidden="true">
           <img src={logoUrl} alt="" />
-          <strong>Beauty Harmony</strong>
           <span>{language === "uz" ? "Rasmiy distribyutor" : "Официальный дистрибьютор"}</span>
         </div>
       </header>

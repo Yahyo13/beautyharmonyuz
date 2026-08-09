@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 360" role="img" aria-label="Green Pharmacy">
+  <rect width="720" height="360" fill="#fff"/>
+  <g fill="#602403">
+    <path d="M88 96c122 21 430 21 544 0 13-2 17 17 4 22-128 23-424 23-552 0-13-4-9-24 4-22Z"/>
+    <path d="M86 289h548c12 0 18 18 4 23H82c-14-5-8-23 4-23Z"/>
+    <text x="265" y="162" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="58" font-weight="900">GREEN</text>
+    <text x="360" y="251" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="82" font-weight="900">PHARMACY</text>
+  </g>
+</svg>
