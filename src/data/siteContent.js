@@ -172,26 +172,26 @@ export const ui = {
       eyebrow: "О компании",
       title: "Beauty Harmony: официальный дистрибьютор косметики",
       intro:
-        "Мы поставляем в Узбекистан косметические бренды для магазинов, аптек, салонов, супермаркетов и маркетплейсов. На сайте собраны категории ухода за волосами, лицом, телом, депиляция, детская линейка и мужской уход.",
+        "Beauty Harmony занимается поставками косметической продукции в Узбекистане. Мы работаем с брендами для ухода за волосами, лицом и телом, депиляции, детской линейки и мужского ухода.",
       missionLabel: "Наша задача",
-      missionTitle: "Сделать импортные бренды ближе к покупателю",
+      missionTitle: "Надежно поставлять бренды для розницы и B2B",
       missionText:
-        "Каждый бренд раскрыт отдельно: производитель, годы работы, категории, преимущества и карточки товаров. Покупатель быстрее понимает, что выбрать, а партнер видит, как бренд можно поставить на полку или в маркетплейс.",
+        "Мы помогаем магазинам, аптекам, салонам, супермаркетам и маркетплейсам получать понятный ассортимент с узнаваемыми брендами, стабильными категориями и готовыми товарными направлениями.",
       portfolioTitle: "Портфель брендов",
       portfolioText:
-        "В каталоге представлены Dr.Sante, Fresh Juice, The Doctor, Green Pharmacy, Lady Caramel, Cool Men и Pink Elephant. Для каждого направления подобрана своя визуальная подача и структура товара.",
+        "В портфеле Beauty Harmony представлены Dr.Sante, Fresh Juice, The Doctor, Green Pharmacy, Lady Caramel, Cool Men и Pink Elephant. Эти бренды закрывают ежедневный уход, натуральную косметику, депиляцию, мужскую и детскую категории.",
       logisticsTitle: "Для розницы и B2B",
       logisticsText:
-        "Beauty Harmony дает покупателю понятный каталог, а для партнеров оставляет отдельную B2B-страницу с заявкой на опт, поставки, розничные сети и маркетплейсы.",
+        "Мы ориентируемся на долгосрочное сотрудничество: подбираем ассортимент под формат партнера, помогаем запускать бренды на полке и поддерживаем развитие продаж.",
       stats: [
         ["7", "брендов в портфеле"],
         ["300+", "товаров в каталоге"],
-        ["RU / UZ", "языки сайта"],
+        ["B2B", "оптовые поставки"],
       ],
       values: [
-        "Понятные карточки товаров с фото, назначением и ссылкой на покупку.",
-        "Отдельные страницы брендов с историей, производителем и преимуществами.",
-        "Гибкая витрина: каталог можно расширять через Firebase и локальные данные.",
+        "Поставки для магазинов косметики, аптек, салонов, супермаркетов и маркетплейсов.",
+        "Ассортимент с понятными категориями: уход, депиляция, детская линейка и мужской уход.",
+        "Фокус на надежность, качество продукции и долгосрочное партнерство.",
       ],
     },
     favorites: {
@@ -412,26 +412,26 @@ export const ui = {
       eyebrow: "Kompaniya haqida",
       title: "Beauty Harmony: kosmetika mahsulotlarining rasmiy distribyutori",
       intro:
-        "Biz kosmetika brendlarini O'zbekistondagi do'konlar, dorixonalar, salonlar, supermarketlar va marketplace'lar uchun yetkazib beramiz. Saytda soch, yuz, tana parvarishi, depilyatsiya, bolalar liniyasi va erkaklar parvarishi bo'yicha mahsulotlar jamlangan.",
+        "Beauty Harmony O'zbekistonda kosmetika mahsulotlarini yetkazib berish bilan shug'ullanadi. Biz soch, yuz va tana parvarishi, depilyatsiya, bolalar liniyasi hamda erkaklar parvarishi brendlari bilan ishlaymiz.",
       missionLabel: "Bizning vazifamiz",
-      missionTitle: "Import brendlarni xaridorga yaqin qilish",
+      missionTitle: "Chakana savdo va B2B uchun ishonchli yetkazib berish",
       missionText:
-        "Har bir brend uchun ishlab chiqaruvchi, bozordagi tajriba, kategoriyalar, afzalliklar va tovar kartochkalari alohida ko'rsatilgan. Xaridor tez tanlaydi, hamkor esa mahsulotni savdo rastasi yoki marketplace'ga qanday chiqarishni ko'radi.",
+        "Biz do'konlar, dorixonalar, salonlar, supermarketlar va marketplace'lar uchun tanilgan brendlar, aniq kategoriyalar va sotuvga tayyor assortimentni shakllantirishga yordam beramiz.",
       portfolioTitle: "Brendlar portfeli",
       portfolioText:
-        "Katalogda Dr.Sante, Fresh Juice, The Doctor, Green Pharmacy, Lady Caramel, Cool Men va Pink Elephant bor. Har bir yo'nalish uchun o'ziga mos vizual uslub va tovar tuzilmasi tanlangan.",
+        "Beauty Harmony portfelida Dr.Sante, Fresh Juice, The Doctor, Green Pharmacy, Lady Caramel, Cool Men va Pink Elephant brendlari bor. Ular kundalik parvarish, tabiiy kosmetika, depilyatsiya, erkaklar va bolalar yo'nalishlarini qamrab oladi.",
       logisticsTitle: "Chakana va B2B uchun",
       logisticsText:
-        "Beauty Harmony xaridor uchun tushunarli katalog beradi, hamkorlar uchun esa ulgurji savdo, yetkazib berish, chakana tarmoqlar va marketpleyslar bo'yicha alohida B2B ariza sahifasi bor.",
+        "Biz uzoq muddatli hamkorlikka e'tibor beramiz: assortimentni hamkor formatiga moslaymiz, brendlarni savdo rastasiga chiqarishga va sotuvni rivojlantirishga yordam beramiz.",
       stats: [
         ["7", "portfeldagi brendlar"],
         ["300+", "katalogdagi tovarlar"],
-        ["RU / UZ", "sayt tillari"],
+        ["B2B", "ulgurji yetkazib berish"],
       ],
       values: [
-        "Foto, vazifa va xarid havolasi bor tushunarli tovar kartochkalari.",
-        "Tarix, ishlab chiqaruvchi va afzalliklar berilgan alohida brend sahifalari.",
-        "Moslashuvchan vitrina: katalog Firebase va lokal ma'lumotlar orqali kengayadi.",
+        "Kosmetika do'konlari, dorixonalar, salonlar, supermarketlar va marketplace'lar uchun yetkazib berish.",
+        "Aniq kategoriyalar: parvarish, depilyatsiya, bolalar liniyasi va erkaklar parvarishi.",
+        "Ishonchlilik, mahsulot sifati va uzoq muddatli hamkorlikka e'tibor.",
       ],
     },
     favorites: {

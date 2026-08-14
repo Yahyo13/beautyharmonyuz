@@ -1988,8 +1988,8 @@ function CatalogProductCard({ product }) {
   const productDescription = getProductDescription(product, language);
   const productVolume = getProductVolume(product, language);
   const productBrand = brandCopy?.localName || product.brand;
-  const flipHint = language === "uz" ? "Tavsifni ko'rish uchun bosing" : "Нажмите, чтобы увидеть описание";
-  const backHint = language === "uz" ? "Kartaga qaytish uchun bosing" : "Нажмите, чтобы вернуться к карточке";
+  const flipHint = language === "uz" ? "Tavsif" : "Описание";
+  const backHint = language === "uz" ? "Tovar kartasi" : "Карточка товара";
 
   function handleCardFlip(event) {
     if (event.target.closest("a, button, input, select, textarea")) return;
